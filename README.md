@@ -71,13 +71,27 @@ This API is {% badge stability:stable %}.
 Override visible text with {% badge stability:stable label="Production ready" %}.
 ```
 
-Wrap a Markdown list, table, or mkdocstrings output in filter markers:
+Generate an autosummary-style table directly from MkDocs pages:
+
+```markdown
+{% autosummary %}
+api/stable.md
+api/experimental.md
+{% endautosummary %}
+```
+
+Each row uses the target page's `title`, `summary` or `description`, and `badges`
+metadata. Badges render on their own line beneath the API name. Paths and globs
+are supported, and links are resolved through MkDocs so they point at the actual
+generated HTML page. Signatures are optional with `signatures=short|long`.
+
+Wrap an autosummary, Markdown list, ordinary table, or mkdocstrings output in
+filter markers:
 
 ```markdown
 <!-- mkdocs-badges:filter stability:stable stability:experimental area:core mode=or -->
 
-- [Stable API](api/stable.md)
-- [Experimental API](api/experimental.md)
+{% autosummary api/*.md %}
 
 <!-- mkdocs-badges:end -->
 ```
@@ -90,7 +104,7 @@ Filter options mirror the useful parts of `sphinx-badges`:
 
 - `mode=and|or` sets flat-filter matching.
 - `order=fixed` displays chips in the order listed by the filter.
-- `toggle=true` adds a badge-visibility control for each group.
+- `toggle=true` adds an open/closed eye control for each group.
 - `hidden="area platform"` starts those groups with their chips hidden.
 
 Shortcodes inside fenced code blocks are left untouched. Badge labels, tooltip
@@ -99,8 +113,9 @@ contain trusted HTML so Material icons or Font Awesome markup can be used.
 
 ## How filtering finds badges
 
-The plugin records page-level `badges` metadata during the build. In a filter,
-linked list items and table rows receive the linked page's badges. A mkdocstrings
+The plugin records page-level `badges` metadata and every real output URL during
+the build. Autosummary rows are rendered with their badges immediately; linked
+list items and ordinary table rows are annotated in the browser. A mkdocstrings
 `.doc-object` is filtered from badge shortcodes rendered inside that object. This
 keeps the authoring model native to MkDocs: front matter labels pages, while
 shortcodes label finer-grained API members.

@@ -24,7 +24,7 @@ theme:
 plugins:
   - search
   - badges:
-      style: rounded
+      style: square
       group_labels:
         stability:
           label: Stability
@@ -41,6 +41,7 @@ plugins:
         stability:experimental: { label: Experimental, color: "#ffc107", text_color: "#000", icon: "🧪" }
         stability:deprecated: { label: Deprecated, color: "#dc3545", text_color: "#fff" }
         area:core: { label: Core, color: "#6f42c1", text_color: "#fff", icon: "📦" }
+        area:math: { label: Math, color: "#20c997", text_color: "#000", icon: "📐" }
         area:utils: { label: Utils, color: "#fd7e14", text_color: "#fff", icon: "🔧" }
         platform:python: { label: "", color: "#3572a5", text_color: "#fff", icon: "🐍", tooltip: Python }
 
@@ -54,5 +55,12 @@ nav:
   - Overview: index.md
   - Usage: usage.md
   - Examples:
-      - Stable transform: examples/stable.md
-      - Experimental helper: examples/experimental.md
+      - Overview: examples/index.md
+      - Manual table: examples/manual.md
+      - Autosummary: examples/autosummary.md
+      - API objects: examples/api-objects.md
+      - Sample APIs:
+          - Stable transform: examples/stable.md
+          - Beta processor: examples/beta.md
+          - Experimental helper: examples/experimental.md
+          - Deprecated formatter: examples/deprecated.md

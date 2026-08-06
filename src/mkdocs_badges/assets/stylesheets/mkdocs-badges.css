@@ -67,6 +67,7 @@ div.mkdocs-badge-list {
 
 .mkdocs-badge-filter__button,
 .mkdocs-badge-filter__clear,
+.mkdocs-badge-filter__all,
 .mkdocs-badge-filter__toggle {
   border: 0;
   cursor: pointer;
@@ -75,9 +76,23 @@ div.mkdocs-badge-list {
 
 .mkdocs-badge-filter__button {
   background: transparent;
-  opacity: 0.48;
+  filter: none;
+  opacity: 1;
   padding: 0;
-  transition: opacity 125ms ease, transform 125ms ease;
+  transition: filter 125ms ease, opacity 125ms ease, transform 125ms ease;
+}
+
+.mkdocs-badge-filter__all {
+  background: transparent;
+  border: 0.05rem solid var(--md-default-fg-color--lighter, #aaa);
+  border-radius: 0.2rem;
+  color: var(--md-default-fg-color--light, #555);
+  padding: 0.2rem 0.55rem;
+}
+
+.mkdocs-badge-filter__all[aria-pressed="true"] {
+  background: var(--md-default-fg-color--lightest, #ddd);
+  color: var(--md-default-fg-color, #222);
 }
 
 .mkdocs-badge-filter__button:hover,
@@ -87,11 +102,28 @@ div.mkdocs-badge-list {
 }
 
 .mkdocs-badge-filter__button[aria-pressed="true"] {
+  filter: none;
+  opacity: 1;
   transform: translateY(-0.05rem);
+}
+
+.mkdocs-badge-filter--active
+  .mkdocs-badge-filter__button[aria-pressed="false"] {
+  filter: brightness(0.55) saturate(0.65);
+  opacity: 0.72;
+}
+
+.mkdocs-badge-filter--active
+  .mkdocs-badge-filter__button[aria-pressed="false"]:hover,
+.mkdocs-badge-filter--active
+  .mkdocs-badge-filter__button[aria-pressed="false"]:focus-visible {
+  filter: brightness(0.8) saturate(0.85);
+  opacity: 0.9;
 }
 
 .mkdocs-badge-filter__button:focus-visible,
 .mkdocs-badge-filter__clear:focus-visible,
+.mkdocs-badge-filter__all:focus-visible,
 .mkdocs-badge-filter__toggle:focus-visible {
   outline: 0.1rem solid var(--md-accent-fg-color, #526cfe);
   outline-offset: 0.1rem;
@@ -111,9 +143,72 @@ div.mkdocs-badge-list {
 }
 
 .mkdocs-badge-filter__toggle[aria-pressed="true"] { opacity: 0.45; }
+.mkdocs-badge-filter__eye-closed { display: none; }
+.mkdocs-badge-filter__toggle[aria-pressed="true"] .mkdocs-badge-filter__eye-open {
+  display: none;
+}
+.mkdocs-badge-filter__toggle[aria-pressed="true"] .mkdocs-badge-filter__eye-closed {
+  display: inline-flex;
+}
+.mkdocs-badge-filter__toggle svg { display: block; }
 .mkdocs-badge-filter__content { padding: 0.2rem 0.8rem 0.8rem; }
 .mkdocs-badge-filter__content .mkdocs-badge-list { margin-left: 0.35rem; }
-.mkdocs-badge-filter__content [data-mkdocs-badges-hidden] { display: none !important; }
+.mkdocs-badge-filter__content .mkdocs-badge-filter--hidden { display: none !important; }
+.mkdocs-badge--group-hidden { display: none !important; }
+
+.mkdocs-badge-list--entry {
+  display: flex;
+  margin-top: 0.3rem;
+}
+
+table.mkdocs-badges-autosummary {
+  border: 0;
+  border-collapse: collapse;
+  display: table;
+  font-size: 0.76rem;
+  margin: 0;
+  width: 100%;
+}
+
+table.mkdocs-badges-autosummary tbody tr:nth-child(odd) {
+  background: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+}
+
+table.mkdocs-badges-autosummary tbody tr:nth-child(even) {
+  background: transparent;
+}
+
+table.mkdocs-badges-autosummary td {
+  border: 0;
+  padding: 0.65rem 0.75rem;
+  vertical-align: top;
+}
+
+table.mkdocs-badges-autosummary td:first-child {
+  border-right: 0.05rem solid var(--md-default-fg-color--lightest, #ddd);
+  width: 34%;
+}
+
+table.mkdocs-badges-autosummary td .mkdocs-badge-list--summary {
+  display: flex;
+  margin: 0.35rem 0 0;
+  width: 100%;
+}
+
+table.mkdocs-badges-autosummary code {
+  display: inline-block;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mkdocs-badge-demo-object {
+  border-left: 0.15rem solid var(--md-default-fg-color--lightest, #ddd);
+  margin: 0.8rem 0;
+  padding: 0.15rem 0 0.5rem 0.8rem;
+}
+
+.mkdocs-badge-demo-object > :first-child { margin-top: 0.4rem; }
+.mkdocs-badge-demo-object > :last-child { margin-bottom: 0; }
 
 @media screen and (max-width: 44.984375em) {
   .mkdocs-badge-filter__group { flex-basis: 100%; }
@@ -121,5 +216,6 @@ div.mkdocs-badge-list {
 
 @media print {
   .mkdocs-badge-filter__controls { display: none; }
-  .mkdocs-badge-filter__content [data-mkdocs-badges-hidden] { display: revert !important; }
+  .mkdocs-badge-filter__content .mkdocs-badge-filter--hidden { display: revert !important; }
+  .mkdocs-badge--group-hidden { display: inline-flex !important; }
 }

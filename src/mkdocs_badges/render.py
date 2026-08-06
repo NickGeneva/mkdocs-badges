@@ -11,6 +11,23 @@ from dataclasses import dataclass
 from typing import Any
 
 DEFAULT_COLOR = "#6c757d"
+EYE_OPEN_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" '
+    'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/>'
+    '<circle cx="12" cy="12" r="3"/></svg>'
+)
+EYE_CLOSED_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" '
+    'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" '
+    'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8 '
+    'a18.45 18.45 0 0 1 5.06-5.94"/>'
+    '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8 '
+    'a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>'
+    "</svg>"
+)
 DEFAULT_DEFINITIONS: dict[str, dict[str, str]] = {
     "stable": {"label": "Stable", "color": "#198754", "text_color": "#fff"},
     "beta": {"label": "Beta", "color": "#0dcaf0", "text_color": "#000"},
@@ -118,14 +135,18 @@ def badges_html(
     style: str,
     *,
     block: bool = False,
+    extra_class: str = "",
 ) -> str:
     tag = "div" if block else "span"
+    classes = "mkdocs-badge-list"
+    if extra_class:
+        classes = f"{classes} {extra_class}"
     items = "".join(
         badge_html(badge_id, definitions, default_color, style)
         for badge_id in badge_ids
         if badge_id
     )
-    return f'<{tag} class="mkdocs-badge-list">{items}</{tag}>'
+    return f'<{tag} class="{classes}">{items}</{tag}>'
 
 
 def group_config(group: str, labels: Mapping[str, Any]) -> dict[str, str]:
@@ -176,6 +197,7 @@ def filter_html(
         "data-filter-mode": mode,
         "data-grouped": str(grouped).lower(),
         "data-badge-order": ",".join(badge_ids) if fixed else "",
+        "data-group-visibility-toggle": str(toggle).lower(),
         "data-groups-hidden": ",".join(hidden),
     }
     attr_html = " ".join(
@@ -196,8 +218,12 @@ def filter_html(
                 result.append(
                     '<button type="button" class="mkdocs-badge-filter__toggle" '
                     f'data-badge-group="{html.escape(group, quote=True)}" '
+                    f'title="Hide {html.escape(config["label"], quote=True)} badges" '
                     f'aria-label="Toggle {html.escape(config["label"], quote=True)} badges" '
-                    'aria-pressed="false"><span aria-hidden="true">◉</span></button>'
+                    'aria-pressed="false">'
+                    f'<span class="mkdocs-badge-filter__eye-open">{EYE_OPEN_SVG}</span>'
+                    f'<span class="mkdocs-badge-filter__eye-closed">{EYE_CLOSED_SVG}</span>'
+                    "</button>"
                 )
             title = (
                 f' title="{html.escape(config["tooltip"], quote=True)}"'
@@ -217,6 +243,10 @@ def filter_html(
         )
     else:
         result.append('<span class="mkdocs-badge-filter__group">Filter by</span>')
+        result.append(
+            '<button type="button" class="mkdocs-badge-filter__all" '
+            'data-badge-id="__all__" aria-pressed="true">All</button>'
+        )
         result.extend(
             _filter_button(badge_id, definitions, default_color, style) for badge_id in badge_ids
         )

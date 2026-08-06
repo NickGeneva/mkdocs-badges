@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mkdocs-badges"
-version = "0.1.0"
+version = "0.2.0"
 description = "Material-friendly status badges and interactive filters for MkDocs"
 readme = "README.md"
 license = { text = "MIT" }
@@ -42,3 +42,6 @@ target-version = "py39"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/test_plugin.py" = ["E501"]

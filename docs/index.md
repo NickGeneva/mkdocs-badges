@@ -12,12 +12,16 @@ directives, and a build-generated badge index connects filtered links to pages.
 
 This sentence contains an inline {% badge stability:experimental %} badge.
 
-<!-- mkdocs-badges:filter stability:stable stability:experimental area:core area:utils mode=or order=fixed toggle=true hidden=area -->
+<!-- mkdocs-badges:filter stability:stable stability:beta stability:experimental stability:deprecated area:core area:math area:utils mode=or order=fixed toggle=true hidden=area -->
 
-- [Stable transform](examples/stable.md)
-- [Experimental helper](examples/experimental.md)
+{% autosummary %}
+examples/stable.md
+examples/beta.md
+examples/experimental.md
+examples/deprecated.md
+{% endautosummary %}
 
 <!-- mkdocs-badges:end -->
 
-Use the controls above to filter the linked pages. Reveal the Area chips with
-the group visibility control.
+Use the controls above to filter the generated summary table. The eye icon next
+to each group hides or reveals that group's chips without changing the filter.

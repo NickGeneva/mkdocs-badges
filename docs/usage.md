@@ -24,6 +24,30 @@ Custom label {% badge stability:stable label="Production ready" %}
 {% badges stability:stable area:core %}
 ```
 
+## Autosummary tables
+
+Generate a two-column API summary from existing Markdown pages. Titles,
+descriptions, badges, and final HTML links come from each page's front matter
+and MkDocs file metadata. Badges always render on their own line beneath the
+linked API name:
+
+```markdown
+{% autosummary %}
+api/transform.md
+api/regrid.md
+{% endautosummary %}
+```
+
+The compact form supports paths, globs, and options:
+
+```markdown
+{% autosummary api/*.md headers=true title="Object" description="Summary" signatures=long %}
+```
+
+Set `badges=false` to omit badges. Signatures are hidden by default; use
+`signatures=short` for `(…)` or `signatures=long` for the full front-matter
+`signature`. Set `headers=true` to add an explicit header row.
+
 ## Filters
 
 A filter uses HTML comments so the enclosed content remains ordinary Markdown:
@@ -36,9 +60,9 @@ A filter uses HTML comments so the enclosed content remains ordinary Markdown:
 <!-- mkdocs-badges:end -->
 ```
 
-Filters understand linked Markdown lists, table rows, and mkdocstrings
-`.doc-object` elements. Put a badge shortcode in a mkdocstrings object's rendered
-docstring to label that object.
+Filters understand generated autosummary tables, linked Markdown lists, ordinary
+table rows, and mkdocstrings `.doc-object` elements. Put a badge shortcode in a
+mkdocstrings object's rendered docstring to label that object.
 
 Grouped filters use OR within a group and AND across groups. For example,
 selecting both `stability:stable` and `stability:beta`, plus `area:core`, means

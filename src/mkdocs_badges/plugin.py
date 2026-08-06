@@ -2,25 +2,41 @@
 
 from __future__ import annotations
 
+import fnmatch
+import html
 import json
 import logging
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from mkdocs.config import base, config_options
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import File, Files
 from mkdocs.structure.pages import Page
+from mkdocs.utils import get_relative_url
+from mkdocs.utils.meta import get_data
 
-from .render import DEFAULT_COLOR, badge_html, badges_html, filter_html, parse_options
+from .render import (
+    DEFAULT_COLOR,
+    badge_html,
+    badges_html,
+    filter_html,
+    parse_options,
+    resolve_badge,
+)
 
 log = logging.getLogger("mkdocs.plugins.badges")
 
 _SHORTCODE_RE = re.compile(r"{%\s*(badge|badges)\s+(.+?)\s*%}")
+_AUTOSUMMARY_INLINE_RE = re.compile(r"{%\s*autosummary\s+(.+?)\s*%}")
+_AUTOSUMMARY_START_RE = re.compile(r"^\s*{%\s*autosummary\s*%}\s*$")
+_AUTOSUMMARY_END_RE = re.compile(r"^\s*{%\s*endautosummary\s*%}\s*$")
 _FILTER_START_RE = re.compile(r"<!--\s*mkdocs-badges:filter\s+(.+?)\s*-->")
 _FILTER_END_RE = re.compile(r"<!--\s*mkdocs-badges:end\s*-->")
 _FENCE_RE = re.compile(r"^\s*(`{3,}|~{3,})")
+_HEADING_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+_PARAGRAPH_RE = re.compile(r"(?:^|\n\s*\n)(?![#>`*\-])([^\n][^\n]*(?:\n(?!\s*\n)[^\n]+)*)")
 
 
 class BadgesConfig(base.Config):
@@ -32,14 +48,13 @@ class BadgesConfig(base.Config):
 
 
 class BadgesPlugin(BasePlugin[BadgesConfig]):
-    """Render badge shortcodes and ship their Material-friendly assets."""
+    """Render badges, page summaries, and interactive Material filters."""
 
     def on_startup(self, *, command: str, dirty: bool = False) -> None:
-        self._page_badges: dict[str, list[str]] = {}
+        self._pages: dict[str, dict[str, Any]] = {}
 
     def on_config(self, config: base.Config) -> base.Config:
-        # ``on_startup`` is not invoked by every programmatic MkDocs build.
-        self._page_badges = {}
+        self._pages = {}
         css = "assets/stylesheets/mkdocs-badges.css"
         data = "assets/javascripts/mkdocs-badges-data.js"
         js = "assets/javascripts/mkdocs-badges.js"
@@ -65,6 +80,16 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
                         config.use_directory_urls,
                     )
                 )
+
+        # Build the complete page catalogue before Markdown rendering. This makes
+        # autosummary output deterministic and avoids build-order-dependent links.
+        for file in files.documentation_pages():
+            try:
+                source = Path(file.abs_src_path).read_text(encoding="utf-8")
+            except OSError:
+                continue
+            body, metadata = get_data(source)
+            self._pages[file.src_uri] = _page_record(file, body, metadata)
         return files
 
     def on_page_markdown(
@@ -76,27 +101,44 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
         files: Files,
     ) -> str:
         badge_ids = _normalise_badges(page.meta.get("badges", []))
-        if badge_ids:
-            self._page_badges[_normalise_url(page.url)] = badge_ids
-            if self.config.page_badges:
-                rendered = badges_html(
-                    badge_ids,
-                    self.config.definitions,
-                    self.config.default_color,
-                    self.config.style,
-                    block=True,
-                )
-                markdown = _insert_after_title(markdown, rendered)
-        return _replace_shortcodes(
+        record = self._pages.setdefault(
+            page.file.src_uri,
+            _page_record(page.file, markdown, page.meta),
+        )
+        record.update(
+            {
+                "title": str(page.meta.get("title") or page.title or record["title"]),
+                "summary": str(
+                    page.meta.get("summary") or page.meta.get("description") or record["summary"]
+                ),
+                "badges": badge_ids,
+                "url": page.url,
+                "dest_uri": page.file.dest_uri,
+            }
+        )
+
+        markdown = _replace_markup(
             markdown,
+            page.url,
+            self._pages,
             self.config.definitions,
             self.config.default_color,
             self.config.style,
         )
+        if badge_ids and self.config.page_badges:
+            rendered = badges_html(
+                badge_ids,
+                self.config.definitions,
+                self.config.default_color,
+                self.config.style,
+                block=True,
+            )
+            markdown = _insert_after_title(markdown, rendered)
+        return markdown
 
     def on_page_content(
         self,
-        html: str,
+        html_content: str,
         *,
         page: Page,
         config: base.Config,
@@ -113,8 +155,8 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
                 options,
             )
 
-        starts = len(_FILTER_START_RE.findall(html))
-        ends = len(_FILTER_END_RE.findall(html))
+        starts = len(_FILTER_START_RE.findall(html_content))
+        ends = len(_FILTER_END_RE.findall(html_content))
         if starts != ends:
             log.warning(
                 "Page %s has %d badge filter start marker(s) and %d end marker(s)",
@@ -122,14 +164,68 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
                 starts,
                 ends,
             )
-        html = _FILTER_START_RE.sub(replace_start, html)
-        return _FILTER_END_RE.sub("</div></div>", html)
+        html_content = _FILTER_START_RE.sub(replace_start, html_content)
+        return _FILTER_END_RE.sub("</div></div>", html_content)
 
     def on_post_build(self, *, config: base.Config) -> None:
         output = Path(config.site_dir) / "assets/javascripts/mkdocs-badges-data.js"
         output.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(self._page_badges, ensure_ascii=False, sort_keys=True)
-        output.write_text(f"window.MKDOCS_BADGES_DATA={payload};\n", encoding="utf-8")
+
+        page_index: dict[str, list[str]] = {}
+        seen_badges: set[str] = set(self.config.definitions)
+        for src_uri, record in self._pages.items():
+            badges = list(record.get("badges", []))
+            seen_badges.update(badges)
+            if not badges:
+                continue
+            for alias in _page_aliases(src_uri, record):
+                page_index[alias] = badges
+
+        definitions: dict[str, dict[str, str]] = {}
+        for badge_id in seen_badges:
+            definition = resolve_badge(badge_id, self.config.definitions, self.config.default_color)
+            definitions[badge_id] = {
+                "label": definition.label,
+                "color": definition.color,
+                "text_color": definition.text_color,
+                "group": definition.group,
+                "icon": definition.icon,
+                "tooltip": definition.tooltip,
+            }
+
+        payload = {
+            "pages": page_index,
+            "definitions": definitions,
+            "style": self.config.style,
+        }
+        output.write_text(
+            "// Generated by mkdocs-badges.\n"
+            f"window.MKDOCS_BADGES={json.dumps(payload, ensure_ascii=False, sort_keys=True)};\n",
+            encoding="utf-8",
+        )
+
+
+def _page_record(file: File, body: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    title_match = _HEADING_RE.search(body)
+    fallback_title = PurePosixPath(file.src_uri).stem.replace("-", " ").title()
+    title = metadata.get("title") or (title_match.group(1) if title_match else fallback_title)
+    summary = metadata.get("summary") or metadata.get("description") or _first_paragraph(body)
+    return {
+        "title": str(title),
+        "summary": str(summary),
+        "signature": str(metadata.get("signature", "")),
+        "badges": _normalise_badges(metadata.get("badges", [])),
+        "url": file.url,
+        "dest_uri": file.dest_uri,
+    }
+
+
+def _first_paragraph(body: str) -> str:
+    without_title = _HEADING_RE.sub("", body, count=1)
+    match = _PARAGRAPH_RE.search(without_title)
+    if not match:
+        return ""
+    return " ".join(match.group(1).split())
 
 
 def _normalise_badges(value: Any) -> list[str]:
@@ -143,14 +239,28 @@ def _normalise_badges(value: Any) -> list[str]:
 
 
 def _normalise_url(url: str) -> str:
-    if url in {".", "./", "/"}:
-        return ""
-    url = url.lstrip("./")
-    if url.endswith("index.html"):
+    url = url.split("#", 1)[0].split("?", 1)[0].replace("\\", "/")
+    while url.startswith("./"):
+        url = url[2:]
+    url = url.lstrip("/")
+    if url.endswith("/index.html"):
         url = url[: -len("index.html")]
+    elif url == "index.html":
+        url = ""
     elif url.endswith(".html"):
         url = f"{url[:-5]}/"
     return url
+
+
+def _page_aliases(src_uri: str, record: dict[str, Any]) -> set[str]:
+    src = src_uri.replace("\\", "/")
+    aliases = {
+        _normalise_url(str(record.get("url", ""))),
+        _normalise_url(str(record.get("dest_uri", ""))),
+        _normalise_url(src),
+        _normalise_url(str(PurePosixPath(src).with_suffix(""))),
+    }
+    return aliases
 
 
 def _insert_after_title(markdown: str, rendered: str) -> str:
@@ -162,19 +272,22 @@ def _insert_after_title(markdown: str, rendered: str) -> str:
     return f"{rendered}\n\n{markdown}"
 
 
-def _replace_shortcodes(
+def _replace_markup(
     markdown: str,
+    current_url: str,
+    pages: dict[str, dict[str, Any]],
     definitions: dict[str, dict[str, Any]],
     default_color: str,
     style: str,
 ) -> str:
-    """Replace badge shortcodes outside fenced code blocks."""
+    """Replace plugin markup outside fenced code blocks."""
     in_fence = False
     fence_char = ""
     fence_size = 0
+    summary_lines: list[str] | None = None
     output: list[str] = []
 
-    def replace(match: re.Match[str]) -> str:
+    def replace_badge(match: re.Match[str]) -> str:
         kind, raw = match.groups()
         ids, options = parse_options(raw)
         if not ids:
@@ -190,6 +303,12 @@ def _replace_shortcodes(
             )
         return badges_html(ids, definitions, default_color, style)
 
+    def replace_summary(match: re.Match[str]) -> str:
+        entries, options = parse_options(match.group(1))
+        return _autosummary_html(
+            entries, options, current_url, pages, definitions, default_color, style
+        )
+
     for line in markdown.splitlines(keepends=True):
         fence = _FENCE_RE.match(line)
         if fence:
@@ -199,5 +318,103 @@ def _replace_shortcodes(
                 fence_char, fence_size = marker[0], len(marker)
             elif marker[0] == fence_char and len(marker) >= fence_size:
                 in_fence = False
-        output.append(line if in_fence or fence else _SHORTCODE_RE.sub(replace, line))
+            output.append(line)
+            continue
+
+        if in_fence:
+            output.append(line)
+            continue
+
+        if summary_lines is not None:
+            if _AUTOSUMMARY_END_RE.match(line):
+                entries = [item.strip() for item in summary_lines if item.strip()]
+                output.append(
+                    _autosummary_html(
+                        entries, {}, current_url, pages, definitions, default_color, style
+                    )
+                    + "\n"
+                )
+                summary_lines = None
+            elif line.strip() and not line.lstrip().startswith("#"):
+                summary_lines.append(line.strip())
+            continue
+
+        if _AUTOSUMMARY_START_RE.match(line):
+            summary_lines = []
+            continue
+
+        line = _AUTOSUMMARY_INLINE_RE.sub(replace_summary, line)
+        output.append(_SHORTCODE_RE.sub(replace_badge, line))
+
+    if summary_lines is not None:
+        log.warning("Unclosed autosummary block")
+        output.extend(["{% autosummary %}\n", *summary_lines])
     return "".join(output)
+
+
+def _autosummary_html(
+    entries: list[str],
+    options: dict[str, str | bool],
+    current_url: str,
+    pages: dict[str, dict[str, Any]],
+    definitions: dict[str, dict[str, Any]],
+    default_color: str,
+    style: str,
+) -> str:
+    selected: list[tuple[str, dict[str, Any]]] = []
+    for entry in entries:
+        pattern = entry.lstrip("./").replace("\\", "/")
+        matches = [key for key in pages if fnmatch.fnmatch(key, pattern)]
+        if not matches and not pattern.endswith(".md"):
+            matches = [key for key in pages if key == f"{pattern}.md"]
+        if not matches:
+            log.warning("Autosummary entry %r did not match a documentation page", entry)
+            continue
+        for key in matches:
+            if all(existing != key for existing, _ in selected):
+                selected.append((key, pages[key]))
+
+    title = str(options.get("title", "API"))
+    description = str(options.get("description", "Description"))
+    headers = str(options.get("headers", "false")).lower() in {"1", "true", "yes"}
+    signatures = str(options.get("signatures", "none")).lower()
+    show_badges = str(options.get("badges", "true")).lower() not in {"0", "false", "no"}
+    rows: list[str] = []
+    for src_uri, record in selected:
+        target_url = str(record["url"])
+        href = get_relative_url(target_url, current_url)
+        badge_ids = list(record.get("badges", []))
+        badge_markup = (
+            badges_html(
+                badge_ids,
+                definitions,
+                default_color,
+                style,
+                extra_class="mkdocs-badge-list--summary",
+            )
+            if show_badges
+            else ""
+        )
+        signature = str(record.get("signature", ""))
+        if signatures == "long":
+            displayed_signature = signature
+        elif signatures == "short" and signature:
+            displayed_signature = "(…)"
+        else:
+            displayed_signature = ""
+        name = f"{record['title']}{displayed_signature}"
+        rows.append(
+            f'<tr data-page-src="{html.escape(src_uri, quote=True)}" '
+            f'data-page-url="{html.escape(target_url, quote=True)}" '
+            f'data-badge-ids="{html.escape(",".join(badge_ids), quote=True)}">'
+            f'<td><a href="{html.escape(href, quote=True)}"><code>{html.escape(name)}</code></a>'
+            f"{badge_markup}</td><td>{html.escape(str(record['summary']))}</td></tr>"
+        )
+    heading = (
+        f"<thead><tr><th>{html.escape(title)}</th><th>{html.escape(description)}</th></tr></thead>"
+        if headers
+        else ""
+    )
+    return (
+        f'<table class="mkdocs-badges-autosummary">{heading}<tbody>{"".join(rows)}</tbody></table>'
+    )

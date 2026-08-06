@@ -1,157 +1,284 @@
+/** Interactive filters for MkDocs lists, autosummary tables, and API objects. */
 (() => {
   "use strict";
 
-  const pageData = () => window.MKDOCS_BADGES_DATA || {};
+  const state = () => window.MKDOCS_BADGES || {
+    pages: {}, definitions: {}, style: "rounded"
+  };
 
-  function normalisePath(value) {
-    return value.replace(/[?#].*$/, "").replace(/^\.\//, "").replace(/^\//, "")
-      .replace(/index\.html$/, "").replace(/\.html$/, "/");
+  const siteRoot = (() => {
+    const scripts = document.querySelectorAll("script[src]");
+    for (const script of scripts) {
+      const src = script.getAttribute("src") || "";
+      if (!src.includes("mkdocs-badges-data.js")) continue;
+      try {
+        const path = new URL(src, document.baseURI).pathname;
+        const marker = "/assets/javascripts/";
+        const index = path.indexOf(marker);
+        if (index >= 0) return path.slice(0, index + 1);
+      } catch (_) { /* Fall through to the configured Material base. */ }
+    }
+    const config = document.querySelector("#__config");
+    try {
+      const base = JSON.parse(config?.textContent || "{}").base || ".";
+      return new URL(`${base}/`, document.baseURI).pathname;
+    } catch (_) { return "/"; }
+  })();
+
+  function normalisePageName(value) {
+    let path = value.split("#", 1)[0].split("?", 1)[0].replaceAll("\\", "/");
+    path = path.replace(/^\/+/, "").replace(/^\.\//, "");
+    path = path.replace(/\/index\.html$/, "/").replace(/^index\.html$/, "");
+    if (path.endsWith(".html")) path = `${path.slice(0, -5)}/`;
+    return path;
   }
 
-  function badgesForLink(link) {
-    const raw = link.getAttribute("href");
-    if (!raw || /^(?:[a-z]+:|#)/i.test(raw)) return [];
-    const data = pageData();
-    const relative = normalisePath(raw);
-    if (data[relative]) return data[relative];
-    let path;
-    try { path = normalisePath(new URL(raw, document.baseURI).pathname); }
-    catch (_) { return []; }
-    const keys = Object.keys(data).sort((a, b) => b.length - a.length);
-    const key = keys.find((candidate) => {
-      const clean = normalisePath(candidate);
-      return clean && (path === clean || path.endsWith(`/${clean}`));
-    });
-    return key ? data[key] : [];
+  function hrefToPageName(href) {
+    if (!href || /^(?:#|mailto:|tel:|javascript:)/i.test(href)) return "";
+    try {
+      let path = decodeURI(new URL(href, document.baseURI).pathname);
+      if (path.startsWith(siteRoot)) path = path.slice(siteRoot.length);
+      return normalisePageName(path);
+    } catch (_) {
+      return normalisePageName(href);
+    }
   }
 
-  function directBadges(target) {
-    const own = [];
-    target.querySelectorAll(".mkdocs-badge[data-badge-id]").forEach((badge) => {
-      if (!badge.closest(".mkdocs-badge-filter__controls")) own.push(badge.dataset.badgeId);
-    });
-    return [...new Set(own)];
+  function pageBadges(pageName) {
+    const pages = state().pages || {};
+    const normalised = normalisePageName(pageName);
+    return pages[normalised] || [];
   }
 
-  function annotateTarget(target) {
-    const direct = directBadges(target);
-    if (direct.length) return direct;
-    const link = target.querySelector("a[href]");
-    if (!link) return [];
-    const ids = badgesForLink(link);
-    if (!ids.length) return [];
-    const templates = document.querySelectorAll(
-      ".mkdocs-badge-filter__controls .mkdocs-badge-filter__button"
-    );
-    const list = document.createElement("span");
-    list.className = "mkdocs-badge-list";
-    ids.forEach((id) => {
-      const button = [...templates].find((item) => item.dataset.badgeId === id);
-      const badge = button && button.querySelector(".mkdocs-badge");
-      if (badge) list.appendChild(badge.cloneNode(true));
+  function makeBadge(badgeId) {
+    const config = state();
+    const definition = (config.definitions || {})[badgeId];
+    if (!definition) return null;
+    const badge = document.createElement("span");
+    badge.className = `mkdocs-badge mkdocs-badge--${config.style || "rounded"}`;
+    badge.dataset.badgeId = badgeId;
+    badge.dataset.badgeGroup = definition.group || "";
+    badge.style.setProperty("--badge-color", definition.color || "#6c757d");
+    badge.style.setProperty("--badge-text-color", definition.text_color || "#fff");
+    if (definition.tooltip) badge.title = definition.tooltip;
+    if (definition.icon) {
+      const icon = document.createElement("span");
+      icon.className = "mkdocs-badge__icon";
+      icon.innerHTML = definition.icon;
+      badge.appendChild(icon);
+    }
+    if (definition.label) {
+      const label = document.createElement("span");
+      label.className = "mkdocs-badge__label";
+      label.textContent = definition.label;
+      badge.appendChild(label);
+    }
+    return badge;
+  }
+
+  function directBadgeIds(element) {
+    const ids = [];
+    element.querySelectorAll(".mkdocs-badge[data-badge-id]").forEach((badge) => {
+      const closestObject = badge.closest(".doc-object");
+      if (element.classList.contains("doc-object") && closestObject !== element) return;
+      if (badge.closest(".mkdocs-badge-filter__controls")) return;
+      if (!ids.includes(badge.dataset.badgeId)) ids.push(badge.dataset.badgeId);
     });
-    if (list.children.length) link.insertAdjacentElement("afterend", list);
     return ids;
   }
 
-  function targetsFor(filter) {
-    const content = filter.querySelector(":scope > .mkdocs-badge-filter__content");
-    if (!content) return [];
-    const docs = [...content.querySelectorAll(".doc-object")]
-      .filter((item) => !item.parentElement.closest(".doc-object"));
-    if (docs.length) return docs;
-    const rows = [...content.querySelectorAll("tbody > tr")];
-    if (rows.length) return rows;
-    return [...content.querySelectorAll("li")]
-      .filter((item) => !item.parentElement.closest("li"));
+  function entryFromLink(element, anchor, tbody = null) {
+    const explicit = (element.dataset.badgeIds || "").split(",").filter(Boolean);
+    const pageName = element.dataset.pageUrl
+      ? normalisePageName(element.dataset.pageUrl)
+      : hrefToPageName(anchor?.getAttribute("href") || "");
+    return {
+      element, anchor, tbody, pageName,
+      badgeIds: explicit.length ? explicit : null
+    };
   }
 
-  function selected(filter) {
-    return [...filter.querySelectorAll(
-      ".mkdocs-badge-filter__button[aria-pressed='true']"
-    )].map((button) => button.dataset.badgeId);
+  function collectEntries(content) {
+    const entries = [];
+    const managed = new Set();
+
+    content.querySelectorAll("table.mkdocs-badges-autosummary tbody tr").forEach((row) => {
+      const anchor = row.querySelector("td:first-child a[href]");
+      if (!anchor) return;
+      entries.push(entryFromLink(row, anchor, row.parentElement));
+      managed.add(row);
+    });
+
+    content.querySelectorAll("table:not(.mkdocs-badges-autosummary) tbody tr").forEach((row) => {
+      const anchor = row.querySelector("a[href]");
+      if (!anchor) return;
+      entries.push(entryFromLink(row, anchor, row.parentElement));
+      managed.add(row);
+    });
+
+    content.querySelectorAll("li").forEach((item) => {
+      if (item.parentElement?.closest("li")) return;
+      const anchor = item.querySelector("a[href]");
+      if (!anchor) return;
+      entries.push(entryFromLink(item, anchor));
+      managed.add(item);
+    });
+
+    content.querySelectorAll(".doc-object").forEach((object) => {
+      if (object.classList.contains("doc-class")) return;
+      if (object.parentElement?.closest(".doc-object:not(.doc-class)")) return;
+      entries.push({
+        element: object,
+        anchor: null,
+        tbody: null,
+        pageName: "",
+        badgeIds: directBadgeIds(object),
+      });
+      managed.add(object);
+    });
+
+    // A filter can also wrap custom cards or blocks annotated with data-badge-ids.
+    content.querySelectorAll("[data-badge-ids]").forEach((element) => {
+      if (managed.has(element)) return;
+      const anchor = element.querySelector("a[href]");
+      entries.push(entryFromLink(element, anchor));
+    });
+    return entries;
   }
 
-  function matches(ids, active, grouped, mode) {
-    if (!active.length) return true;
+  function badgesForEntry(entry) {
+    return entry.badgeIds !== null ? entry.badgeIds : pageBadges(entry.pageName);
+  }
+
+  function annotateEntry(entry, badgeOrder) {
+    if (!entry.anchor || directBadgeIds(entry.element).length) return;
+    let ids = badgesForEntry(entry).slice();
+    if (badgeOrder.length) {
+      ids.sort((left, right) => {
+        const a = badgeOrder.indexOf(left);
+        const b = badgeOrder.indexOf(right);
+        return (a < 0 ? badgeOrder.length : a) - (b < 0 ? badgeOrder.length : b);
+      });
+    }
+    const list = document.createElement("span");
+    list.className = "mkdocs-badge-list mkdocs-badge-list--entry";
+    ids.forEach((id) => {
+      const badge = makeBadge(id);
+      if (badge) list.appendChild(badge);
+    });
+    if (!list.children.length) return;
+    const cell = entry.anchor.closest("td");
+    (cell || entry.anchor.parentElement || entry.element).appendChild(list);
+  }
+
+  function isVisible(entry, active, grouped, mode) {
+    if (!active.size) return true;
+    const ids = badgesForEntry(entry);
     if (!grouped) {
       return mode === "or"
-        ? active.some((id) => ids.includes(id))
-        : active.every((id) => ids.includes(id));
+        ? [...active].some((id) => ids.includes(id))
+        : [...active].every((id) => ids.includes(id));
     }
-    const groups = new Map();
+    const groups = {};
     active.forEach((id) => {
-      const group = id.includes(":") ? id.split(":", 1)[0] : "";
-      if (!groups.has(group)) groups.set(group, []);
-      groups.get(group).push(id);
+      const group = id.includes(":") ? id.slice(0, id.indexOf(":")) : "__ungrouped__";
+      (groups[group] ||= []).push(id);
     });
-    return [...groups.values()].every((members) =>
+    return Object.values(groups).every((members) =>
       members.some((id) => ids.includes(id))
     );
   }
 
-  function apply(filter) {
-    const active = selected(filter);
-    const grouped = filter.dataset.grouped === "true";
-    const mode = filter.dataset.filterMode || "and";
-    filter._badgeTargets.forEach(({ element, ids }) => {
-      if (matches(ids, active, grouped, mode)) {
-        element.removeAttribute("data-mkdocs-badges-hidden");
-      } else {
-        element.setAttribute("data-mkdocs-badges-hidden", "");
-      }
+  function applyFilter(entries, active, grouped, mode) {
+    entries.filter((entry) => !entry.tbody).forEach((entry) => {
+      entry.element.classList.toggle(
+        "mkdocs-badge-filter--hidden",
+        !isVisible(entry, active, grouped, mode)
+      );
     });
-    const clear = filter.querySelector(".mkdocs-badge-filter__clear");
-    if (clear) clear.hidden = active.length === 0;
-  }
 
-  function applyOrder(filter) {
-    const order = (filter.dataset.badgeOrder || "").split(",").filter(Boolean);
-    if (!order.length) return;
-    filter.querySelectorAll(".mkdocs-badge-filter__content .mkdocs-badge-list")
-      .forEach((list) => {
-        [...list.children].sort((left, right) => {
-          const a = order.indexOf(left.dataset.badgeId);
-          const b = order.indexOf(right.dataset.badgeId);
-          return (a < 0 ? order.length : a) - (b < 0 ? order.length : b);
-        }).forEach((badge) => list.appendChild(badge));
+    const tableGroups = new Map();
+    entries.filter((entry) => entry.tbody).forEach((entry) => {
+      if (!tableGroups.has(entry.tbody)) tableGroups.set(entry.tbody, []);
+      tableGroups.get(entry.tbody).push(entry);
+    });
+    tableGroups.forEach((rows, tbody) => {
+      rows.forEach((entry) => {
+        if (entry.element.parentElement === tbody) tbody.removeChild(entry.element);
       });
+      let rowIndex = 0;
+      rows.forEach((entry) => {
+        if (!isVisible(entry, active, grouped, mode)) return;
+        tbody.appendChild(entry.element);
+        entry.element.classList.toggle("mkdocs-badge-row--odd", rowIndex % 2 === 0);
+        entry.element.classList.toggle("mkdocs-badge-row--even", rowIndex % 2 !== 0);
+        rowIndex += 1;
+      });
+    });
   }
 
-  function setGroupVisibility(filter, group, hidden) {
-    filter.querySelectorAll(
-      `.mkdocs-badge-filter__content .mkdocs-badge[data-badge-group="${CSS.escape(group)}"]`
-    ).forEach((badge) => { badge.hidden = hidden; });
-    const toggle = filter.querySelector(
-      `.mkdocs-badge-filter__toggle[data-badge-group="${CSS.escape(group)}"]`
-    );
-    if (toggle) toggle.setAttribute("aria-pressed", String(hidden));
-  }
-
-  function initialise(filter) {
-    if (filter.dataset.badgesReady) return;
-    filter.dataset.badgesReady = "true";
-    filter._badgeTargets = targetsFor(filter).map((element) => ({
-      element,
-      ids: annotateTarget(element),
-    }));
-    applyOrder(filter);
-    (filter.dataset.groupsHidden || "").split(",").filter(Boolean)
-      .forEach((group) => setGroupVisibility(filter, group, true));
-    filter.addEventListener("click", (event) => {
-      const button = event.target.closest("button");
-      if (!button) return;
-      if (button.classList.contains("mkdocs-badge-filter__button")) {
-        button.setAttribute("aria-pressed", String(button.getAttribute("aria-pressed") !== "true"));
-        apply(filter);
-      } else if (button.classList.contains("mkdocs-badge-filter__clear")) {
-        filter.querySelectorAll(".mkdocs-badge-filter__button")
-          .forEach((item) => item.setAttribute("aria-pressed", "false"));
-        apply(filter);
-      } else if (button.classList.contains("mkdocs-badge-filter__toggle")) {
-        setGroupVisibility(filter, button.dataset.badgeGroup, button.getAttribute("aria-pressed") !== "true");
+  function setGroupVisibility(widget, group, hidden) {
+    const content = widget.querySelector(":scope > .mkdocs-badge-filter__content");
+    content?.querySelectorAll(".mkdocs-badge[data-badge-group]").forEach((badge) => {
+      if (badge.dataset.badgeGroup === group) {
+        badge.classList.toggle("mkdocs-badge--group-hidden", hidden);
       }
     });
+    const toggle = [...widget.querySelectorAll(".mkdocs-badge-filter__toggle")]
+      .find((button) => button.dataset.badgeGroup === group);
+    if (toggle) {
+      toggle.setAttribute("aria-pressed", String(hidden));
+      toggle.title = `${hidden ? "Show" : "Hide"} ${group} badges`;
+    }
+  }
+
+  function initialise(widget) {
+    if (widget.dataset.badgesReady === "true") return;
+    const content = widget.querySelector(":scope > .mkdocs-badge-filter__content");
+    if (!content) return;
+
+    const entries = collectEntries(content);
+    const grouped = widget.dataset.grouped === "true";
+    const mode = widget.dataset.filterMode || "and";
+    const badgeOrder = (widget.dataset.badgeOrder || "").split(",").filter(Boolean);
+    const active = new Set();
+    entries.forEach((entry) => annotateEntry(entry, badgeOrder));
+
+    function sync() {
+      widget.classList.toggle("mkdocs-badge-filter--active", active.size > 0);
+      widget.querySelectorAll(".mkdocs-badge-filter__button").forEach((button) => {
+        button.setAttribute("aria-pressed", String(active.has(button.dataset.badgeId)));
+      });
+      const all = widget.querySelector(".mkdocs-badge-filter__all");
+      if (all) all.setAttribute("aria-pressed", String(active.size === 0));
+      const clear = widget.querySelector(".mkdocs-badge-filter__clear");
+      if (clear) clear.hidden = active.size === 0;
+      applyFilter(entries, active, grouped, mode);
+    }
+
+    widget.addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button || !widget.contains(button)) return;
+      if (button.classList.contains("mkdocs-badge-filter__button")) {
+        const id = button.dataset.badgeId;
+        active.has(id) ? active.delete(id) : active.add(id);
+        sync();
+      } else if (
+        button.classList.contains("mkdocs-badge-filter__clear") ||
+        button.classList.contains("mkdocs-badge-filter__all")
+      ) {
+        active.clear();
+        sync();
+      } else if (button.classList.contains("mkdocs-badge-filter__toggle")) {
+        const hidden = button.getAttribute("aria-pressed") !== "true";
+        setGroupVisibility(widget, button.dataset.badgeGroup, hidden);
+      }
+    });
+
+    (widget.dataset.groupsHidden || "").split(",").filter(Boolean)
+      .forEach((group) => setGroupVisibility(widget, group, true));
+    widget.dataset.badgesReady = "true";
+    sync();
   }
 
   function initialiseAll() {
@@ -159,6 +286,9 @@
   }
 
   if (typeof document$ !== "undefined") document$.subscribe(initialiseAll);
-  else if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initialiseAll);
-  else initialiseAll();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initialiseAll);
+  } else {
+    initialiseAll();
+  }
 })();
