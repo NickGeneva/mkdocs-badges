@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mkdocs-badges"
+version = "0.1.0"
+description = "Material-friendly status badges and interactive filters for MkDocs"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Nicholas Geneva" }]
+requires-python = ">=3.9"
+keywords = ["mkdocs", "material", "documentation", "badges", "filter"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Framework :: MkDocs",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Documentation",
+]
+dependencies = ["mkdocs>=1.5"]
+
+[project.optional-dependencies]
+docs = ["mkdocs-material>=9.5"]
+test = ["pytest>=7", "beautifulsoup4>=4.12"]
+
+[project.entry-points."mkdocs.plugins"]
+badges = "mkdocs_badges.plugin:BadgesPlugin"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mkdocs_badges"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/mkdocs_badges", "docs", "mkdocs.yml", "README.md", "LICENSE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]

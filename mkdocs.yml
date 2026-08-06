@@ -1,0 +1,58 @@
+site_name: mkdocs-badges
+site_description: Material-friendly status badges and interactive filters for MkDocs
+site_url: https://nickgeneva.github.io/mkdocs-badges/
+repo_url: https://github.com/NickGeneva/mkdocs-badges
+repo_name: NickGeneva/mkdocs-badges
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - badges:
+      style: rounded
+      group_labels:
+        stability:
+          label: Stability
+          tooltip: How safe this API is to depend on
+        area:
+          label: Area
+          tooltip: Functional area
+        platform:
+          label: Platform
+          tooltip: Supported runtime
+      definitions:
+        stability:stable: { label: Stable, color: "#198754", text_color: "#fff" }
+        stability:beta: { label: Beta, color: "#0dcaf0", text_color: "#000" }
+        stability:experimental: { label: Experimental, color: "#ffc107", text_color: "#000", icon: "🧪" }
+        stability:deprecated: { label: Deprecated, color: "#dc3545", text_color: "#fff" }
+        area:core: { label: Core, color: "#6f42c1", text_color: "#fff", icon: "📦" }
+        area:utils: { label: Utils, color: "#fd7e14", text_color: "#fff", icon: "🔧" }
+        platform:python: { label: "", color: "#3572a5", text_color: "#fff", icon: "🐍", tooltip: Python }
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+nav:
+  - Overview: index.md
+  - Usage: usage.md
+  - Examples:
+      - Stable transform: examples/stable.md
+      - Experimental helper: examples/experimental.md
