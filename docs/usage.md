@@ -68,6 +68,18 @@ Grouped filters use OR within a group and AND across groups. For example,
 selecting both `stability:stable` and `stability:beta`, plus `area:core`, means
 “stable or beta, and core.”
 
+Filter selections are reflected in the URL as repeated `badge` query
+parameters. Opening that URL restores the filtered view, making it possible to
+bookmark or share a specific result set:
+
+```text
+https://docs.example.com/api/?badge=stability%3Astable&badge=area%3Acore
+```
+
+The URL is updated without a page reload. Unrelated query parameters and the
+fragment identifier are preserved, and clearing the filter removes the `badge`
+parameters.
+
 Options are placed after the badge IDs:
 
 ```markdown

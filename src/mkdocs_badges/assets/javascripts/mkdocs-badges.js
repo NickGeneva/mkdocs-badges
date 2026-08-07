@@ -5,6 +5,7 @@
   const state = () => window.MKDOCS_BADGES || {
     pages: {}, definitions: {}, style: "rounded"
   };
+  const FILTER_QUERY_PARAMETER = "badge";
 
   const siteRoot = (() => {
     const scripts = document.querySelectorAll("script[src]");
@@ -24,6 +25,30 @@
       return new URL(`${base}/`, document.baseURI).pathname;
     } catch (_) { return "/"; }
   })();
+
+  function badgeIdsFromUrl() {
+    try {
+      const parameters = new URL(window.location.href).searchParams;
+      return [...new Set(
+        parameters.getAll(FILTER_QUERY_PARAMETER)
+          .flatMap((value) => value.split(","))
+          .map((value) => value.trim())
+          .filter(Boolean)
+      )];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function writeBadgeIdsToUrl(active) {
+    if (!window.history?.replaceState) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete(FILTER_QUERY_PARAMETER);
+    active.forEach((badgeId) => {
+      url.searchParams.append(FILTER_QUERY_PARAMETER, badgeId);
+    });
+    window.history.replaceState(window.history.state, "", url);
+  }
 
   function normalisePageName(value) {
     let path = value.split("#", 1)[0].split("?", 1)[0].replaceAll("\\", "/");
@@ -241,10 +266,15 @@
     const grouped = widget.dataset.grouped === "true";
     const mode = widget.dataset.filterMode || "and";
     const badgeOrder = (widget.dataset.badgeOrder || "").split(",").filter(Boolean);
-    const active = new Set();
+    const available = new Set(
+      [...widget.querySelectorAll(".mkdocs-badge-filter__button")]
+        .map((button) => button.dataset.badgeId)
+        .filter(Boolean)
+    );
+    const active = new Set(badgeIdsFromUrl().filter((id) => available.has(id)));
     entries.forEach((entry) => annotateEntry(entry, badgeOrder));
 
-    function sync() {
+    function sync(updateUrl = false) {
       widget.classList.toggle("mkdocs-badge-filter--active", active.size > 0);
       widget.querySelectorAll(".mkdocs-badge-filter__button").forEach((button) => {
         button.setAttribute("aria-pressed", String(active.has(button.dataset.badgeId)));
@@ -254,6 +284,7 @@
       const clear = widget.querySelector(".mkdocs-badge-filter__clear");
       if (clear) clear.hidden = active.size === 0;
       applyFilter(entries, active, grouped, mode);
+      if (updateUrl) writeBadgeIdsToUrl(active);
     }
 
     widget.addEventListener("click", (event) => {
@@ -262,13 +293,13 @@
       if (button.classList.contains("mkdocs-badge-filter__button")) {
         const id = button.dataset.badgeId;
         active.has(id) ? active.delete(id) : active.add(id);
-        sync();
+        sync(true);
       } else if (
         button.classList.contains("mkdocs-badge-filter__clear") ||
         button.classList.contains("mkdocs-badge-filter__all")
       ) {
         active.clear();
-        sync();
+        sync(true);
       } else if (button.classList.contains("mkdocs-badge-filter__toggle")) {
         const hidden = button.getAttribute("aria-pressed") !== "true";
         setGroupVisibility(widget, button.dataset.badgeGroup, hidden);
