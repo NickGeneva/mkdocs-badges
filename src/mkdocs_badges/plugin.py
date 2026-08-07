@@ -117,6 +117,7 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
             }
         )
 
+        has_equivalent_badge_list = _contains_equivalent_badges_shortcode(markdown, badge_ids)
         markdown = _replace_markup(
             markdown,
             page.url,
@@ -125,7 +126,7 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
             self.config.default_color,
             self.config.style,
         )
-        if badge_ids and self.config.page_badges:
+        if badge_ids and self.config.page_badges and not has_equivalent_badge_list:
             rendered = badges_html(
                 badge_ids,
                 self.config.definitions,
@@ -270,6 +271,18 @@ def _insert_after_title(markdown: str, rendered: str) -> str:
             lines[index + 1 : index + 1] = ["", rendered, ""]
             return "\n".join(lines)
     return f"{rendered}\n\n{markdown}"
+
+
+def _contains_equivalent_badges_shortcode(markdown: str, badge_ids: list[str]) -> bool:
+    """Return whether the page explicitly renders the same badges as one list."""
+    expected = sorted(badge_ids)
+    for match in _SHORTCODE_RE.finditer(markdown):
+        if match.group(1) != "badges":
+            continue
+        rendered_ids, _ = parse_options(match.group(2))
+        if sorted(rendered_ids) == expected:
+            return True
+    return False
 
 
 def _replace_markup(

@@ -59,6 +59,7 @@ nav:
       - Manual table: examples/manual.md
       - Autosummary: examples/autosummary.md
       - API objects: examples/api-objects.md
+      - Explicit page badge list: examples/deduplication.md
       - Sample APIs:
           - Stable transform: examples/stable.md
           - Beta processor: examples/beta.md

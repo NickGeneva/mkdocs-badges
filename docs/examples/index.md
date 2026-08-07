@@ -29,3 +29,6 @@ does not change which rows match the active filters.
   summaries, and final MkDocs URLs.
 - [API object filtering](api-objects.md) demonstrates member-level badges like
   the Sphinx autodoc example.
+- [Explicit page badge list](deduplication.md) mirrors generated API pages that
+  use frontmatter metadata and a manually positioned equivalent list without
+  rendering duplicate badges.

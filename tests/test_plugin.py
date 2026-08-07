@@ -92,6 +92,43 @@ examples/experimental.md
     assert (tmp_path / "site/assets/javascripts/mkdocs-badges.js").is_file()
 
 
+def test_equivalent_manual_badge_list_suppresses_page_badges(tmp_path: Path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text(
+        """---
+badges: [region:global, class:mrf, year:2026]
+---
+# AIFS2
+
+{% badges year:2026 region:global class:mrf %}
+""",
+        encoding="utf-8",
+    )
+    config_file = tmp_path / "mkdocs.yml"
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                "site_name": "Test",
+                "docs_dir": str(docs),
+                "site_dir": str(tmp_path / "site"),
+                "plugins": ["badges"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    build(load_config(config_file=str(config_file)))
+
+    soup = BeautifulSoup((tmp_path / "site/index.html").read_text(encoding="utf-8"), "html.parser")
+    lists = soup.select(".mkdocs-badge-list")
+    assert len(lists) == 1
+    assert [badge["data-badge-id"] for badge in lists[0].select(".mkdocs-badge")] == [
+        "year:2026",
+        "region:global",
+        "class:mrf",
+    ]
+
+
 def test_inline_autosummary_and_glob(tmp_path: Path):
     docs = tmp_path / "docs"
     (docs / "api").mkdir(parents=True)
