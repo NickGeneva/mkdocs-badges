@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mkdocs-badges"
-version = "0.2.0"
-description = "Material-friendly status badges and interactive filters for MkDocs"
+version = "0.3.0"
+description = "Zensical-first status badges, autosummaries, and interactive filters"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Nicholas Geneva" }]
-requires-python = ">=3.9"
-keywords = ["mkdocs", "material", "documentation", "badges", "filter"]
+requires-python = ">=3.10"
+keywords = ["zensical", "mkdocs", "material", "documentation", "badges", "filter"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Framework :: MkDocs",
@@ -18,27 +18,30 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Topic :: Documentation",
 ]
-dependencies = ["mkdocs>=1.5"]
+dependencies = ["zensical>=0.0.53", "mkdocs>=1.5"]
 
 [project.optional-dependencies]
-docs = ["mkdocs-material>=9.5"]
-test = ["pytest>=7", "beautifulsoup4>=4.12"]
+docs = []
+test = ["pytest>=7", "beautifulsoup4>=4.12", "mkdocs-material>=9.5"]
 
 [project.entry-points."mkdocs.plugins"]
 badges = "mkdocs_badges.plugin:BadgesPlugin"
+
+[project.entry-points."markdown.extensions"]
+mkdocs_badges = "mkdocs_badges.zensical:makeExtension"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mkdocs_badges"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src/mkdocs_badges", "docs", "mkdocs.yml", "README.md", "LICENSE"]
+include = ["src/mkdocs_badges", "docs", "zensical.toml", "mkdocs.yml", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]

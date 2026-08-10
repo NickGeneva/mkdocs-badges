@@ -1,5 +1,32 @@
 # Usage
 
+## Zensical setup (default)
+
+Add the Python Markdown extension to `zensical.toml`. All badge configuration
+lives directly beneath the extension:
+
+```toml
+[project.markdown_extensions."mkdocs_badges.zensical"]
+style = "square"
+page_badges = true
+selectable_text = false
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:stable"]
+label = "Stable"
+color = "#198754"
+text_color = "#fff"
+```
+
+Run `zensical serve` while authoring and `zensical build --clean` for production.
+The extension embeds its small CSS, JavaScript, and page badge index so no
+manual asset configuration is necessary.
+
+## MkDocs compatibility
+
+Existing MkDocs projects can continue to configure `plugins: [badges]` in
+`mkdocs.yml`. The Markdown syntax and rendered behavior are identical on both
+backends.
+
 ## Page badges
 
 Add `badges` to a page's YAML front matter:
@@ -38,8 +65,9 @@ Custom label {% badge stability:stable label="Production ready" %}
 
 Generate a two-column API summary from existing Markdown pages. Titles,
 descriptions, badges, and final HTML links come from each page's front matter
-and MkDocs file metadata. Badges always render on their own line beneath the
-linked API name:
+and documentation metadata. Like Sphinx autosummary, descriptions are limited
+to the first sentence of `summary`, `description`, or the first body paragraph.
+Badges always render on their own line beneath the linked API name:
 
 ```markdown
 {% autosummary %}

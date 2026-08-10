@@ -1,13 +1,13 @@
 # mkdocs-badges
 
-Material-friendly status badges and interactive content filters for
-[MkDocs](https://www.mkdocs.org/). This is the MkDocs counterpart of
-[sphinx-badges](https://github.com/NickGeneva/sphinx-badges).
+Zensical-first status badges, autosummaries, and interactive content filters,
+with a compatible MkDocs plugin for existing projects. This is the Markdown
+counterpart of [sphinx-badges](https://github.com/NickGeneva/sphinx-badges).
 
 Attach coloured badges to pages or any inline Markdown, then filter linked pages,
 tables, lists, and mkdocstrings API objects by badge group. The plugin supports
-Material's light/dark palettes, responsive layouts, print output, and instant
-navigation.
+Zensical's modern and classic variants, Material light/dark palettes, responsive
+layouts, print output, and instant navigation.
 
 ## Installation
 
@@ -15,7 +15,39 @@ navigation.
 pip install mkdocs-badges
 ```
 
-Add the plugin to `mkdocs.yml`:
+Add the native Python Markdown extension to `zensical.toml`:
+
+```toml
+[project.markdown_extensions."mkdocs_badges.zensical"]
+style = "rounded"
+selectable_text = false
+
+[project.markdown_extensions."mkdocs_badges.zensical".group_labels.stability]
+label = "Stability"
+tooltip = "API stability level"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:stable"]
+label = "Stable"
+color = "#198754"
+text_color = "#fff"
+```
+
+`stable`, `beta`, `experimental`, `deprecated`, and `new` have built-in colours,
+so configuration is optional. `style` can be `rounded`, `square`, or `pill`.
+Badge text selection is disabled by default to avoid selection highlights while
+interacting; set `selectable_text: true` to allow selecting and copying it.
+
+Preview and build with Zensical:
+
+```bash
+zensical serve
+zensical build --clean
+```
+
+### MkDocs compatibility
+
+The existing MkDocs plugin remains supported. Configure the same options under
+`plugins.badges` in `mkdocs.yml` and use the same Markdown syntax:
 
 ```yaml
 plugins:
@@ -23,31 +55,12 @@ plugins:
   - badges:
       style: rounded
       selectable_text: false
-      group_labels:
-        stability:
-          label: Stability
-          tooltip: API stability level
-        area: Area
       definitions:
         stability:stable:
           label: Stable
           color: "#198754"
           text_color: "#fff"
-        stability:experimental:
-          label: Experimental
-          color: "#ffc107"
-          text_color: "#000"
-          icon: 🧪
-        area:core:
-          label: Core
-          color: "#6f42c1"
-          text_color: "#fff"
 ```
-
-`stable`, `beta`, `experimental`, `deprecated`, and `new` have built-in colours,
-so configuration is optional. `style` can be `rounded`, `square`, or `pill`.
-Badge text selection is disabled by default to avoid selection highlights while
-interacting; set `selectable_text: true` to allow selecting and copying it.
 
 ## Usage
 
@@ -116,7 +129,7 @@ contain trusted HTML so Material icons or Font Awesome markup can be used.
 
 ## How filtering finds badges
 
-The plugin records page-level `badges` metadata and every real output URL during
+The extension records page-level `badges` metadata and every real output URL during
 the build. Autosummary rows are rendered with their badges immediately; linked
 list items and ordinary table rows are annotated in the browser. A mkdocstrings
 `.doc-object` is filtered from badge shortcodes rendered inside that object. This
@@ -128,6 +141,7 @@ shortcodes label finer-grained API members.
 ```bash
 uv sync --extra test --extra docs
 uv run pytest
+uv run zensical build --clean
 uv run mkdocs build --strict
 ```
 

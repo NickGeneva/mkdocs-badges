@@ -1,0 +1,94 @@
+[project]
+site_name = "mkdocs-badges"
+site_description = "Zensical-first status badges and interactive content filters"
+site_url = "https://nickgeneva.github.io/mkdocs-badges/"
+repo_url = "https://github.com/NickGeneva/mkdocs-badges"
+repo_name = "NickGeneva/mkdocs-badges"
+nav = [
+  { "Overview" = "index.md" },
+  { "Usage" = "usage.md" },
+  { "Examples" = [
+    { "Overview" = "examples/index.md" },
+    { "Manual table" = "examples/manual.md" },
+    { "Autosummary" = "examples/autosummary.md" },
+    { "API objects" = "examples/api-objects.md" },
+    { "Explicit page badge list" = "examples/deduplication.md" },
+    { "Sample APIs" = [
+      { "Stable transform" = "examples/stable.md" },
+      { "Beta processor" = "examples/beta.md" },
+      { "Experimental helper" = "examples/experimental.md" },
+      { "Deprecated formatter" = "examples/deprecated.md" },
+    ] },
+  ] },
+]
+
+[project.theme]
+features = ["navigation.sections", "content.code.copy"]
+
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions."pymdownx.highlight"]
+[project.markdown_extensions."pymdownx.superfences"]
+
+[project.markdown_extensions."mkdocs_badges.zensical"]
+style = "square"
+page_badges = true
+selectable_text = false
+
+[project.markdown_extensions."mkdocs_badges.zensical".group_labels.stability]
+label = "Stability"
+tooltip = "How safe this API is to depend on"
+
+[project.markdown_extensions."mkdocs_badges.zensical".group_labels.area]
+label = "Area"
+tooltip = "Functional area"
+
+[project.markdown_extensions."mkdocs_badges.zensical".group_labels.platform]
+label = "Platform"
+tooltip = "Supported runtime"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:stable"]
+label = "Stable"
+color = "#198754"
+text_color = "#fff"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:beta"]
+label = "Beta"
+color = "#0dcaf0"
+text_color = "#000"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:experimental"]
+label = "Experimental"
+color = "#ffc107"
+text_color = "#000"
+icon = "🧪"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:deprecated"]
+label = "Deprecated"
+color = "#dc3545"
+text_color = "#fff"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."area:core"]
+label = "Core"
+color = "#6f42c1"
+text_color = "#fff"
+icon = "📦"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."area:math"]
+label = "Math"
+color = "#20c997"
+text_color = "#000"
+icon = "📐"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."area:utils"]
+label = "Utils"
+color = "#fd7e14"
+text_color = "#fff"
+icon = "🔧"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."platform:python"]
+label = ""
+color = "#3572a5"
+text_color = "#fff"
+icon = "🐍"
+tooltip = "Python"

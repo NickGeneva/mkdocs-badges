@@ -212,7 +212,9 @@ def _page_record(file: File, body: str, metadata: dict[str, Any]) -> dict[str, A
     title_match = _HEADING_RE.search(body)
     fallback_title = PurePosixPath(file.src_uri).stem.replace("-", " ").title()
     title = metadata.get("title") or (title_match.group(1) if title_match else fallback_title)
-    summary = metadata.get("summary") or metadata.get("description") or _first_paragraph(body)
+    summary = _first_sentence(
+        metadata.get("summary") or metadata.get("description") or _first_paragraph(body)
+    )
     return {
         "title": str(title),
         "summary": str(summary),
@@ -229,6 +231,42 @@ def _first_paragraph(body: str) -> str:
     if not match:
         return ""
     return " ".join(match.group(1).split())
+
+
+def _first_sentence(value: Any) -> str:
+    """Return a compact autosummary description matching Sphinx's convention."""
+    text = " ".join(str(value).split())
+    if not text:
+        return ""
+
+    # Avoid splitting common abbreviations and decimal/version numbers while
+    # keeping the implementation dependency-free.
+    abbreviations = {
+        "e.g.",
+        "i.e.",
+        "etc.",
+        "mr.",
+        "mrs.",
+        "ms.",
+        "dr.",
+        "prof.",
+        "sr.",
+        "jr.",
+        "vs.",
+    }
+    for index, character in enumerate(text):
+        if character not in ".!?":
+            continue
+        if index + 1 < len(text) and not text[index + 1].isspace():
+            continue
+        token = text[: index + 1].rsplit(" ", 1)[-1].lower()
+        if token in abbreviations:
+            continue
+        if character == "." and index and index + 1 < len(text):
+            if text[index - 1].isdigit() and text[index + 1].isdigit():
+                continue
+        return text[: index + 1]
+    return text
 
 
 def _normalise_badges(value: Any) -> list[str]:

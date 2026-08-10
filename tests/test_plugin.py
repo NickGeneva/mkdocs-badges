@@ -13,7 +13,7 @@ def test_material_site_build(tmp_path: Path):
     (examples / "stable.md").write_text(
         """---
 title: Stable API
-description: Production-ready operations.
+description: Production-ready operations. Additional implementation details should not appear.
 signature: (value)
 badges: [stability:stable, area:core]
 ---
@@ -78,6 +78,11 @@ examples/experimental.md
     assert len(soup.select("table.mkdocs-badges-autosummary tbody tr")) == 2
     assert soup.select_one("a[href='examples/stable/']")
     assert soup.select_one("code").get_text() == "Stable API"
+    assert (
+        "Production-ready operations."
+        in soup.select_one("table.mkdocs-badges-autosummary").get_text()
+    )
+    assert "Additional implementation details" not in output
     assert not soup.select_one("table.mkdocs-badges-autosummary thead")
     summary_badges = soup.select_one("table.mkdocs-badges-autosummary td .mkdocs-badge-list")
     assert "mkdocs-badge-list--summary" in summary_badges["class"]

@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.12"]
+        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -19,4 +19,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --extra test --extra docs
       - run: uv run pytest
+      - run: uv run zensical build --clean
       - run: uv run mkdocs build --strict

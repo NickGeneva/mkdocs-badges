@@ -1,10 +1,11 @@
 # mkdocs-badges
 
-Material-friendly status badges and interactive filters for MkDocs.
+Zensical-first status badges, autosummaries, and interactive filters, with a
+compatible MkDocs plugin for existing projects.
 
 {% badges stability:stable area:core platform:python %}
 
-The plugin is a Markdown-native translation of `sphinx-badges`: page front
+The extension is a Markdown-native translation of `sphinx-badges`: page front
 matter replaces Sphinx's document environment, shortcodes replace roles and
 directives, and a build-generated badge index connects filtered links to pages.
 
