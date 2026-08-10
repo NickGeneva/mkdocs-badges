@@ -107,11 +107,13 @@ class BadgesPreprocessor(Preprocessor):
         has_equivalent = _contains_equivalent_badges_shortcode(markdown, badge_ids)
         markdown = _replace_markup(
             markdown,
-            page.url,
+            src_uri,
             pages,
             options["definitions"],
             options["default_color"],
             options["style"],
+            source_links=True,
+            autosummary_root=options["autosummary_root"],
         )
         if is_top_level and badge_ids and options["page_badges"] and not has_equivalent:
             rendered = badges_html(
@@ -180,6 +182,10 @@ class ZensicalBadgesExtension(Extension):
         "style": ["rounded", "Badge shape: rounded, square, or pill"],
         "page_badges": [True, "Render frontmatter badges beneath the first heading"],
         "selectable_text": [False, "Allow badge and filter text selection"],
+        "autosummary_root": [
+            "modules/generated",
+            "Docs-root directory for autosummary entries",
+        ],
     }
 
     def __init__(self, **kwargs: Any):

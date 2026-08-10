@@ -146,3 +146,50 @@ style = "square"
     soup = BeautifulSoup((tmp_path / "site/index.html").read_text(encoding="utf-8"), "html.parser")
     assert len(soup.select(".mkdocs-badge-list")) == 1
     assert len(soup.select(".mkdocs-badge")) == 3
+
+
+def test_zensical_nested_autosummary_links_resolve_once(tmp_path: Path):
+    docs = tmp_path / "docs"
+    (docs / "modules/generated/models/px").mkdir(parents=True)
+    (docs / "modules/models_px.md").write_text(
+        """# Models
+
+{% autosummary %}
+models/px/AIFS2ENS.md
+/modules/generated/models/px/AIFS2ENS.md
+modules/generated/models/px/AIFS2ENS.md
+{% endautosummary %}
+""",
+        encoding="utf-8",
+    )
+    (docs / "modules/generated/models/px/AIFS2ENS.md").write_text(
+        """---
+title: AIFS2ENS
+summary: Ensemble forecast model.
+---
+# AIFS2ENS
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "zensical.toml").write_text(
+        """[project]
+site_name = "Test"
+
+[project.markdown_extensions."mkdocs_badges.zensical"]
+""",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "zensical", "build", "--clean"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    output = (tmp_path / "site/modules/models_px/index.html").read_text(encoding="utf-8")
+    soup = BeautifulSoup(output, "html.parser")
+    link = soup.select_one("table.mkdocs-badges-autosummary a")
+    assert link["href"] == "../generated/models/px/AIFS2ENS/"
+    assert len(soup.select("table.mkdocs-badges-autosummary tbody tr")) == 1

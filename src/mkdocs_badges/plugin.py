@@ -6,6 +6,7 @@ import fnmatch
 import html
 import json
 import logging
+import posixpath
 import re
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -46,6 +47,7 @@ class BadgesConfig(base.Config):
     style = config_options.Choice(("rounded", "square", "pill"), default="rounded")
     page_badges = config_options.Type(bool, default=True)
     selectable_text = config_options.Type(bool, default=False)
+    autosummary_root = config_options.Type(str, default="modules/generated")
 
 
 class BadgesPlugin(BasePlugin[BadgesConfig]):
@@ -126,6 +128,7 @@ class BadgesPlugin(BasePlugin[BadgesConfig]):
             self.config.definitions,
             self.config.default_color,
             self.config.style,
+            autosummary_root=self.config.autosummary_root,
         )
         if badge_ids and self.config.page_badges and not has_equivalent_badge_list:
             rendered = badges_html(
@@ -332,6 +335,9 @@ def _replace_markup(
     definitions: dict[str, dict[str, Any]],
     default_color: str,
     style: str,
+    *,
+    source_links: bool = False,
+    autosummary_root: str = "modules/generated",
 ) -> str:
     """Replace plugin markup outside fenced code blocks."""
     in_fence = False
@@ -359,7 +365,15 @@ def _replace_markup(
     def replace_summary(match: re.Match[str]) -> str:
         entries, options = parse_options(match.group(1))
         return _autosummary_html(
-            entries, options, current_url, pages, definitions, default_color, style
+            entries,
+            options,
+            current_url,
+            pages,
+            definitions,
+            default_color,
+            style,
+            source_links=source_links,
+            autosummary_root=autosummary_root,
         )
 
     for line in markdown.splitlines(keepends=True):
@@ -383,7 +397,15 @@ def _replace_markup(
                 entries = [item.strip() for item in summary_lines if item.strip()]
                 output.append(
                     _autosummary_html(
-                        entries, {}, current_url, pages, definitions, default_color, style
+                        entries,
+                        {},
+                        current_url,
+                        pages,
+                        definitions,
+                        default_color,
+                        style,
+                        source_links=source_links,
+                        autosummary_root=autosummary_root,
                     )
                     + "\n"
                 )
@@ -413,13 +435,29 @@ def _autosummary_html(
     definitions: dict[str, dict[str, Any]],
     default_color: str,
     style: str,
+    *,
+    source_links: bool = False,
+    autosummary_root: str = "modules/generated",
 ) -> str:
     selected: list[tuple[str, dict[str, Any]]] = []
     for entry in entries:
-        pattern = entry.lstrip("./").replace("\\", "/")
-        matches = [key for key in pages if fnmatch.fnmatch(key, pattern)]
-        if not matches and not pattern.endswith(".md"):
-            matches = [key for key in pages if key == f"{pattern}.md"]
+        raw_pattern = entry.replace("\\", "/")
+        docs_root_relative = raw_pattern.startswith("/")
+        pattern = raw_pattern.lstrip("/")
+        while pattern.startswith("./"):
+            pattern = pattern[2:]
+        root = autosummary_root.replace("\\", "/").strip("/")
+        already_rooted = pattern == root or pattern.startswith(f"{root}/")
+        patterns = [posixpath.normpath(pattern)]
+        if root and root != "." and not docs_root_relative and not already_rooted:
+            patterns.insert(0, posixpath.normpath(posixpath.join(root, pattern)))
+        matches: list[str] = []
+        for candidate in patterns:
+            matches = [key for key in pages if fnmatch.fnmatch(key, candidate)]
+            if not matches and not candidate.endswith(".md"):
+                matches = [key for key in pages if key == f"{candidate}.md"]
+            if matches:
+                break
         if not matches:
             log.warning("Autosummary entry %r did not match a documentation page", entry)
             continue
@@ -435,7 +473,15 @@ def _autosummary_html(
     rows: list[str] = []
     for src_uri, record in selected:
         target_url = str(record["url"])
-        href = get_relative_url(target_url, current_url)
+        if source_links:
+            # Zensical resolves Markdown links after extensions run. Give it a
+            # path relative to the current Markdown source so it performs that
+            # conversion exactly once. Passing an already output-relative URL
+            # causes nested pages to climb one directory too far.
+            current_parent = PurePosixPath(current_url).parent.as_posix()
+            href = posixpath.relpath(src_uri.lstrip("./"), current_parent)
+        else:
+            href = get_relative_url(target_url, current_url)
         badge_ids = list(record.get("badges", []))
         badge_markup = (
             badges_html(

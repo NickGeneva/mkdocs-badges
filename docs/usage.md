@@ -10,6 +10,7 @@ lives directly beneath the extension:
 style = "square"
 page_badges = true
 selectable_text = false
+autosummary_root = "modules/generated"
 
 [project.markdown_extensions."mkdocs_badges.zensical".definitions."stability:stable"]
 label = "Stable"
@@ -85,6 +86,13 @@ The compact form supports paths, globs, and options:
 Set `badges=false` to omit badges. Signatures are hidden by default; use
 `signatures=short` for `(…)` or `signatures=long` for the full front-matter
 `signature`. Set `headers=true` to add an explicit header row.
+
+`autosummary_root` defaults to `modules/generated`, so an entry can use
+`models/px/AIFS2ENS.md` instead of the complete docs-root path. If the rooted
+entry does not exist, the original docs-root-relative entry is tried, preserving
+ordinary paths such as `api/transform.md`. This option is available in both
+`zensical.toml` and the MkDocs `badges` plugin configuration. Set it to an empty
+string to disable the root, or begin an entry with `/` to bypass it for that row.
 
 ## Filters
 

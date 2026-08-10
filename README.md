@@ -21,6 +21,7 @@ Add the native Python Markdown extension to `zensical.toml`:
 [project.markdown_extensions."mkdocs_badges.zensical"]
 style = "rounded"
 selectable_text = false
+autosummary_root = "modules/generated"
 
 [project.markdown_extensions."mkdocs_badges.zensical".group_labels.stability]
 label = "Stability"
@@ -55,6 +56,7 @@ plugins:
   - badges:
       style: rounded
       selectable_text: false
+      autosummary_root: modules/generated
       definitions:
         stability:stable:
           label: Stable
@@ -98,8 +100,12 @@ api/experimental.md
 
 Each row uses the target page's `title`, `summary` or `description`, and `badges`
 metadata. Badges render on their own line beneath the API name. Paths and globs
-are supported, and links are resolved through MkDocs so they point at the actual
-generated HTML page. Signatures are optional with `signatures=short|long`.
+are supported, and links are resolved through the active documentation engine so
+they point at the actual generated HTML page. `autosummary_root` defaults to
+`modules/generated`, allowing shorter entries beneath that directory while
+falling back to the original docs-root path when needed. Set it to an empty
+string to disable the root, or prefix an entry with `/` to bypass it. Signatures
+are optional with `signatures=short|long`.
 
 Wrap an autosummary, Markdown list, ordinary table, or mkdocstrings output in
 filter markers:

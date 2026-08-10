@@ -139,7 +139,7 @@ def test_inline_autosummary_and_glob(tmp_path: Path):
     docs = tmp_path / "docs"
     (docs / "api").mkdir(parents=True)
     (docs / "index.md").write_text(
-        "# Index\n\n{% autosummary api/*.md badges=false headers=true signatures=long %}\n",
+        "# Index\n\n{% autosummary *.md badges=false headers=true signatures=long %}\n",
         encoding="utf-8",
     )
     (docs / "api/item.md").write_text(
@@ -153,7 +153,14 @@ def test_inline_autosummary_and_glob(tmp_path: Path):
                 "site_name": "Test",
                 "docs_dir": str(docs),
                 "site_dir": str(tmp_path / "site"),
-                "plugins": [{"badges": {"selectable_text": True}}],
+                "plugins": [
+                    {
+                        "badges": {
+                            "selectable_text": True,
+                            "autosummary_root": "api",
+                        }
+                    }
+                ],
             }
         ),
         encoding="utf-8",
