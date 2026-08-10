@@ -88,6 +88,7 @@ examples/experimental.md
     assert "window.MKDOCS_BADGES=" in data
     assert '"examples/stable/": ["stability:stable", "area:core"]' in data
     assert '"definitions"' in data
+    assert '"selectable_text": false' in data
     assert (tmp_path / "site/assets/stylesheets/mkdocs-badges.css").is_file()
     assert (tmp_path / "site/assets/javascripts/mkdocs-badges.js").is_file()
 
@@ -147,7 +148,7 @@ def test_inline_autosummary_and_glob(tmp_path: Path):
                 "site_name": "Test",
                 "docs_dir": str(docs),
                 "site_dir": str(tmp_path / "site"),
-                "plugins": ["badges"],
+                "plugins": [{"badges": {"selectable_text": True}}],
             }
         ),
         encoding="utf-8",
@@ -159,3 +160,5 @@ def test_inline_autosummary_and_glob(tmp_path: Path):
     assert row.select_one("td:nth-child(2)").get_text() == "Short description."
     assert not row.select_one(".mkdocs-badge")
     assert soup.select_one("thead th").get_text() == "API"
+    data = (tmp_path / "site/assets/javascripts/mkdocs-badges-data.js").read_text()
+    assert '"selectable_text": true' in data

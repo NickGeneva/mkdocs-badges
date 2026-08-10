@@ -22,6 +22,7 @@ plugins:
   - search
   - badges:
       style: rounded
+      selectable_text: false
       group_labels:
         stability:
           label: Stability
@@ -45,6 +46,8 @@ plugins:
 
 `stable`, `beta`, `experimental`, `deprecated`, and `new` have built-in colours,
 so configuration is optional. `style` can be `rounded`, `square`, or `pill`.
+Badge text selection is disabled by default to avoid selection highlights while
+interacting; set `selectable_text: true` to allow selecting and copying it.
 
 ## Usage
 

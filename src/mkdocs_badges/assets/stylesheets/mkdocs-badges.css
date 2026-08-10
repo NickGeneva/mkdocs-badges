@@ -15,6 +15,12 @@ div.mkdocs-badge-list {
   margin: -0.25rem 0 1rem;
 }
 
+.mkdocs-badges--no-text-selection .mkdocs-badge-list,
+.mkdocs-badges--no-text-selection .mkdocs-badge-filter__controls {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .mkdocs-badge {
   align-items: center;
   background: var(--badge-color);

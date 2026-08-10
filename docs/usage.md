@@ -14,6 +14,16 @@ The plugin displays these badges beneath the first H1 by default. Set
 `page_badges: false` in the plugin configuration to index them without rendering
 them at the page title.
 
+Badge and filter-control text is non-selectable by default, which prevents the
+browser's text-selection highlight from appearing during interaction. Set
+`selectable_text: true` if readers should be able to select and copy that text:
+
+```yaml
+plugins:
+  - badges:
+      selectable_text: true
+```
+
 ## Inline and block badges
 
 ```markdown

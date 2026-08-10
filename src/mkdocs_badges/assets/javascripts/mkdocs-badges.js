@@ -3,7 +3,7 @@
   "use strict";
 
   const state = () => window.MKDOCS_BADGES || {
-    pages: {}, definitions: {}, style: "rounded"
+    pages: {}, definitions: {}, style: "rounded", selectable_text: false
   };
   const FILTER_QUERY_PARAMETER = "badge";
 
@@ -313,6 +313,10 @@
   }
 
   function initialiseAll() {
+    document.documentElement.classList.toggle(
+      "mkdocs-badges--no-text-selection",
+      state().selectable_text !== true
+    );
     document.querySelectorAll(".mkdocs-badge-filter").forEach(initialise);
   }
 
