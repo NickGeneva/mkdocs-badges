@@ -78,7 +78,7 @@
   function makeBadge(badgeId) {
     const config = state();
     const definition = (config.definitions || {})[badgeId];
-    if (!definition) return null;
+    if (!definition || definition.hidden) return null;
     const badge = document.createElement("span");
     badge.className = `mkdocs-badge mkdocs-badge--${config.style || "rounded"}`;
     badge.dataset.badgeId = badgeId;

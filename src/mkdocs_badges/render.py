@@ -71,6 +71,13 @@ class BadgeDefinition:
     text_color: str
     icon: str
     tooltip: str
+    hidden: bool
+
+
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def resolve_badge(
@@ -96,6 +103,7 @@ def resolve_badge(
         text_color=_safe_color(values.get("text_color", "#fff"), "#fff"),
         icon=str(values.get("icon", "")),
         tooltip=str(values.get("tooltip", "")),
+        hidden=_as_bool(values.get("hidden", False)),
     )
 
 
@@ -108,6 +116,8 @@ def badge_html(
 ) -> str:
     """Render one badge. Configuration icons may intentionally contain HTML."""
     badge = resolve_badge(badge_id, definitions, default_color)
+    if badge.hidden:
+        return ""
     label = badge.label if label_override is None else label_override
     content = ""
     if badge.icon:
@@ -146,7 +156,7 @@ def badges_html(
         for badge_id in badge_ids
         if badge_id
     )
-    return f'<{tag} class="{classes}">{items}</{tag}>'
+    return f'<{tag} class="{classes}">{items}</{tag}>' if items else ""
 
 
 def group_config(group: str, labels: Mapping[str, Any]) -> dict[str, str]:
@@ -190,13 +200,18 @@ def filter_html(
     fixed = str(options.get("order", "")).lower() == "fixed"
     toggle = str(options.get("toggle", "false")).lower() in {"1", "true", "yes"}
     hidden = str(options.get("hidden", "")).replace(",", " ").split()
-    parsed = [(badge_id, *parse_badge_id(badge_id)) for badge_id in badge_ids]
+    visible_ids = [
+        badge_id
+        for badge_id in badge_ids
+        if not resolve_badge(badge_id, definitions, default_color).hidden
+    ]
+    parsed = [(badge_id, *parse_badge_id(badge_id)) for badge_id in visible_ids]
     grouped = bool(parsed) and all(group for _, group, _ in parsed)
     attrs = {
         "class": "mkdocs-badge-filter",
         "data-filter-mode": mode,
         "data-grouped": str(grouped).lower(),
-        "data-badge-order": ",".join(badge_ids) if fixed else "",
+        "data-badge-order": ",".join(visible_ids) if fixed else "",
         "data-group-visibility-toggle": str(toggle).lower(),
         "data-groups-hidden": ",".join(hidden),
     }
@@ -248,7 +263,7 @@ def filter_html(
             'data-badge-id="__all__" aria-pressed="true">All</button>'
         )
         result.extend(
-            _filter_button(badge_id, definitions, default_color, style) for badge_id in badge_ids
+            _filter_button(badge_id, definitions, default_color, style) for badge_id in visible_ids
         )
         result.append(
             '<button type="button" class="mkdocs-badge-filter__clear" hidden>Clear filters</button>'

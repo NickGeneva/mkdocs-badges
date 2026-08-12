@@ -3,6 +3,7 @@ badges:
   - stability:stable
   - area:core
   - platform:python
+  - provider:acme
 signature: (field, scale=1)
 summary: Apply a production-ready transform to a field.
 ---

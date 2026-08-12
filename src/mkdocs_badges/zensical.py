@@ -22,11 +22,12 @@ from .plugin import (
     _first_sentence,
     _insert_after_title,
     _normalise_badges,
-    _page_aliases,
     _page_record,
     _replace_markup,
+    _runtime_payload,
+    _write_catalog_json,
 )
-from .render import DEFAULT_COLOR, badges_html, filter_html, parse_options, resolve_badge
+from .render import DEFAULT_COLOR, badges_html, filter_html, parse_options
 
 log = logging.getLogger("zensical.extensions.mkdocs_badges")
 
@@ -123,7 +124,8 @@ class BadgesPreprocessor(Preprocessor):
                 options["style"],
                 block=True,
             )
-            markdown = _insert_after_title(markdown, rendered)
+            if rendered:
+                markdown = _insert_after_title(markdown, rendered)
         if is_top_level:
             markdown = f"{markdown}\n{_PAGE_RUNTIME_MARKER}"
         return markdown.splitlines()
@@ -186,6 +188,10 @@ class ZensicalBadgesExtension(Extension):
             "modules/generated",
             "Docs-root directory for autosummary entries",
         ],
+        "catalog_path": [
+            "assets/mkdocs-badges/catalog.json",
+            "Relative output path for reusable catalog JSON",
+        ],
     }
 
     def __init__(self, **kwargs: Any):
@@ -207,33 +213,18 @@ class ZensicalBadgesExtension(Extension):
 
     def browser_runtime(self, context: ContextPreprocessor, options: dict[str, Any]) -> str:
         pages = _catalog(context)
-        page_index: dict[str, list[str]] = {}
-        seen_badges: set[str] = set(options["definitions"])
-        for src_uri, record in pages.items():
-            badge_ids = list(record.get("badges", []))
-            seen_badges.update(badge_ids)
-            if not badge_ids:
-                continue
-            for alias in _page_aliases(src_uri, record):
-                page_index[alias] = badge_ids
-
-        definitions: dict[str, dict[str, str]] = {}
-        for badge_id in seen_badges:
-            definition = resolve_badge(badge_id, options["definitions"], options["default_color"])
-            definitions[badge_id] = {
-                "label": definition.label,
-                "color": definition.color,
-                "text_color": definition.text_color,
-                "group": definition.group,
-                "icon": definition.icon,
-                "tooltip": definition.tooltip,
-            }
-        payload = {
-            "pages": page_index,
-            "definitions": definitions,
-            "style": options["style"],
-            "selectable_text": bool(options["selectable_text"]),
-        }
+        payload = _runtime_payload(
+            pages,
+            options["definitions"],
+            options["default_color"],
+            options["style"],
+            bool(options["selectable_text"]),
+        )
+        _write_catalog_json(
+            _project_path(context.config, "site_dir", "site"),
+            str(options["catalog_path"]),
+            payload,
+        )
         package = Path(__file__).parent
         css = (package / "assets/stylesheets/mkdocs-badges.css").read_text(encoding="utf-8")
         javascript = (package / "assets/javascripts/mkdocs-badges.js").read_text(encoding="utf-8")

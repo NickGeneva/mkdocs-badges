@@ -22,6 +22,7 @@ Add the native Python Markdown extension to `zensical.toml`:
 style = "rounded"
 selectable_text = false
 autosummary_root = "modules/generated"
+catalog_path = "assets/mkdocs-badges/catalog.json"
 
 [project.markdown_extensions."mkdocs_badges.zensical".group_labels.stability]
 label = "Stability"
@@ -31,6 +32,10 @@ tooltip = "API stability level"
 label = "Stable"
 color = "#198754"
 text_color = "#fff"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."provider:nvidia"]
+label = "NVIDIA"
+hidden = true
 ```
 
 `stable`, `beta`, `experimental`, `deprecated`, and `new` have built-in colours,
@@ -57,11 +62,15 @@ plugins:
       style: rounded
       selectable_text: false
       autosummary_root: modules/generated
+      catalog_path: assets/mkdocs-badges/catalog.json
       definitions:
         stability:stable:
           label: Stable
           color: "#198754"
           text_color: "#fff"
+        provider:nvidia:
+          label: NVIDIA
+          hidden: true
 ```
 
 ## Usage
@@ -98,6 +107,20 @@ api/experimental.md
 {% endautosummary %}
 ```
 
+The list may instead contain Python API symbols, matching Sphinx autosummary:
+
+```markdown
+{% autosummary %}
+perturbation.Brown
+perturbation.BredVector
+{% endautosummary %}
+```
+
+Give each generated page a canonical `symbol` in its front matter (for example,
+`symbol: earth2studio.perturbation.Brown`). Package-relative symbols are also
+recognized, so the same autosummary block can be the single list consumed by a
+separate API-page generator and by mkdocs-badges when it renders the table.
+
 Each row uses the target page's `title`, `summary` or `description`, and `badges`
 metadata. Badges render on their own line beneath the API name. Paths and globs
 are supported, and links are resolved through the active documentation engine so
@@ -106,6 +129,12 @@ they point at the actual generated HTML page. `autosummary_root` defaults to
 falling back to the original docs-root path when needed. Set it to an empty
 string to disable the root, or prefix an entry with `/` to bypass it. Signatures
 are optional with `signatures=short|long`.
+
+Set `hidden = true` on a badge definition to keep it as a classifier without
+rendering a visual chip. Hidden classifiers still participate in indexing and
+filter matching. Builds also produce `assets/mkdocs-badges/catalog.json` with
+page symbols, titles, summaries, URLs, signatures, and complete classifier lists for
+custom card or tile catalogs; configure or disable this with `catalog_path`.
 
 Wrap an autosummary, Markdown list, ordinary table, or mkdocstrings output in
 filter markers:

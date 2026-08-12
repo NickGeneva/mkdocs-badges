@@ -1,5 +1,6 @@
 from mkdocs_badges.render import (
     badge_html,
+    badges_html,
     filter_html,
     parse_badge_id,
     parse_options,
@@ -28,6 +29,14 @@ def test_exact_definition_wins_and_label_is_escaped():
 def test_invalid_color_falls_back():
     badge = resolve_badge("custom", {"custom": {"color": "url(evil)"}}, "#abc")
     assert badge.color == "#6c757d"
+
+
+def test_hidden_badge_remains_defined_but_has_no_visual_markup():
+    definitions = {"provider:nvidia": {"label": "NVIDIA", "hidden": True}}
+    definition = resolve_badge("provider:nvidia", definitions)
+    assert definition.hidden is True
+    assert badge_html("provider:nvidia", definitions, "#aaa", "pill") == ""
+    assert badges_html(["provider:nvidia"], definitions, "#aaa", "pill") == ""
 
 
 def test_parse_options_supports_quoted_values():

@@ -92,3 +92,7 @@ color = "#3572a5"
 text_color = "#fff"
 icon = "🐍"
 tooltip = "Python"
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."provider:acme"]
+label = "Acme"
+hidden = true

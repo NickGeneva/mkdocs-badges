@@ -1,3 +1,4 @@
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -193,3 +194,108 @@ site_name = "Test"
     link = soup.select_one("table.mkdocs-badges-autosummary a")
     assert link["href"] == "../generated/models/px/AIFS2ENS/"
     assert len(soup.select("table.mkdocs-badges-autosummary tbody tr")) == 1
+
+
+def test_zensical_hidden_classifier_catalog(tmp_path: Path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text(
+        """---
+title: Catalog item
+summary: A catalog entry.
+badges: [provider:nvidia]
+---
+# Catalog item
+
+{% badge provider:nvidia %}
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "zensical.toml").write_text(
+        """[project]
+site_name = "Test"
+
+[project.markdown_extensions."mkdocs_badges.zensical"]
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."provider:nvidia"]
+label = "NVIDIA"
+hidden = true
+""",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "zensical", "build", "--clean"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    output = (tmp_path / "site/index.html").read_text(encoding="utf-8")
+    assert 'data-badge-id="provider:nvidia"' not in output
+    assert '"hidden": true' in output
+    catalog = json.loads(
+        (tmp_path / "site/assets/mkdocs-badges/catalog.json").read_text(encoding="utf-8")
+    )
+    assert catalog["catalog"][0]["classifiers"] == ["provider:nvidia"]
+    assert catalog["definitions"]["provider:nvidia"]["hidden"] is True
+
+
+def test_zensical_autosummary_resolves_python_api_symbols(tmp_path: Path):
+    docs = tmp_path / "docs"
+    generated = docs / "modules/generated/perturbation/1"
+    generated.mkdir(parents=True)
+    (docs / "modules/perturbation.md").write_text(
+        """# Perturbations
+
+{% autosummary %}
+perturbation.Brown
+perturbation.BredVector
+{% endautosummary %}
+""",
+        encoding="utf-8",
+    )
+    (generated / "perturbation_Brown.md").write_text(
+        """---
+title: perturbation.Brown
+symbol: earth2studio.perturbation.Brown
+summary: Lat/Lon 2D brown noise.
+---
+# `perturbation.Brown`
+""",
+        encoding="utf-8",
+    )
+    (generated / "perturbation_BredVector.md").write_text(
+        """---
+title: perturbation.BredVector
+summary: Bred vector perturbation.
+---
+# `perturbation.BredVector`
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "zensical.toml").write_text(
+        """[project]
+site_name = "Test"
+
+[project.markdown_extensions."mkdocs_badges.zensical"]
+""",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "zensical", "build", "--clean"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    output = (tmp_path / "site/modules/perturbation/index.html").read_text(encoding="utf-8")
+    soup = BeautifulSoup(output, "html.parser")
+    links = soup.select("table.mkdocs-badges-autosummary a")
+    assert [link.get_text(strip=True) for link in links] == [
+        "perturbation.Brown",
+        "perturbation.BredVector",
+    ]
+    assert links[0]["href"] == "../generated/perturbation/1/perturbation_Brown/"

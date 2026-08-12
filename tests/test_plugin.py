@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import yaml
@@ -174,3 +175,111 @@ def test_inline_autosummary_and_glob(tmp_path: Path):
     assert soup.select_one("thead th").get_text() == "API"
     data = (tmp_path / "site/assets/javascripts/mkdocs-badges-data.js").read_text()
     assert '"selectable_text": true' in data
+
+
+def test_hidden_classifier_is_indexed_without_rendering(tmp_path: Path):
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "index.md").write_text(
+        """---
+title: Catalog item
+summary: A catalog entry.
+badges: [provider:nvidia]
+---
+# Catalog item
+
+{% badge provider:nvidia %}
+""",
+        encoding="utf-8",
+    )
+    config_file = tmp_path / "mkdocs.yml"
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                "site_name": "Test",
+                "docs_dir": str(docs),
+                "site_dir": str(tmp_path / "site"),
+                "plugins": [
+                    {
+                        "badges": {
+                            "definitions": {"provider:nvidia": {"label": "NVIDIA", "hidden": True}}
+                        }
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    build(load_config(config_file=str(config_file)))
+
+    output = (tmp_path / "site/index.html").read_text(encoding="utf-8")
+    assert 'data-badge-id="provider:nvidia"' not in output
+    data = (tmp_path / "site/assets/javascripts/mkdocs-badges-data.js").read_text()
+    assert '"provider:nvidia"' in data
+    assert '"hidden": true' in data
+    catalog = json.loads(
+        (tmp_path / "site/assets/mkdocs-badges/catalog.json").read_text(encoding="utf-8")
+    )
+    assert catalog["catalog"][0]["classifiers"] == ["provider:nvidia"]
+    assert catalog["definitions"]["provider:nvidia"]["hidden"] is True
+
+
+def test_autosummary_resolves_python_api_symbols(tmp_path: Path):
+    docs = tmp_path / "docs"
+    generated = docs / "modules/generated/perturbation/1"
+    generated.mkdir(parents=True)
+    (docs / "index.md").write_text(
+        """# Perturbations
+
+{% autosummary %}
+perturbation.Brown
+perturbation.BredVector
+{% endautosummary %}
+""",
+        encoding="utf-8",
+    )
+    (generated / "perturbation_Brown.md").write_text(
+        """---
+title: perturbation.Brown
+symbol: earth2studio.perturbation.Brown
+summary: Lat/Lon 2D brown noise.
+---
+# `perturbation.Brown`
+""",
+        encoding="utf-8",
+    )
+    (generated / "perturbation_BredVector.md").write_text(
+        """---
+title: perturbation.BredVector
+summary: Bred vector perturbation.
+---
+# `perturbation.BredVector`
+""",
+        encoding="utf-8",
+    )
+    config_file = tmp_path / "mkdocs.yml"
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                "site_name": "Test",
+                "docs_dir": str(docs),
+                "site_dir": str(tmp_path / "site"),
+                "plugins": ["badges"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    build(load_config(config_file=str(config_file)))
+
+    soup = BeautifulSoup((tmp_path / "site/index.html").read_text(), "html.parser")
+    links = soup.select("table.mkdocs-badges-autosummary a")
+    assert [link.get_text(strip=True) for link in links] == [
+        "perturbation.Brown",
+        "perturbation.BredVector",
+    ]
+    assert links[0]["href"] == "modules/generated/perturbation/1/perturbation_Brown/"
+    catalog = json.loads(
+        (tmp_path / "site/assets/mkdocs-badges/catalog.json").read_text(encoding="utf-8")
+    )
+    brown = next(item for item in catalog["catalog"] if item["title"] == "perturbation.Brown")
+    assert brown["symbol"] == "earth2studio.perturbation.Brown"
