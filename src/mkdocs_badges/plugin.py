@@ -610,6 +610,7 @@ def _autosummary_html(
         rows.append(
             f'<tr data-page-src="{html.escape(src_uri, quote=True)}" '
             f'data-page-url="{html.escape(target_url, quote=True)}" '
+            f'data-render-badges="{str(show_badges).lower()}" '
             f'data-badge-ids="{html.escape(",".join(badge_ids), quote=True)}">'
             f'<td><a href="{html.escape(href, quote=True)}"><code>{html.escape(name)}</code></a>'
             f"{badge_markup}</td><td>{html.escape(str(record['summary']))}</td></tr>"

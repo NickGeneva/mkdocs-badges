@@ -172,6 +172,7 @@ def test_inline_autosummary_and_glob(tmp_path: Path):
     assert row.select_one("a")["href"] == "api/item/"
     assert row.select_one("td:nth-child(2)").get_text() == "Short description."
     assert not row.select_one(".mkdocs-badge")
+    assert row["data-render-badges"] == "false"
     assert soup.select_one("thead th").get_text() == "API"
     data = (tmp_path / "site/assets/javascripts/mkdocs-badges-data.js").read_text()
     assert '"selectable_text": true' in data
@@ -234,7 +235,8 @@ def test_badge_can_be_hidden_from_autosummary_but_visible_on_api_page(tmp_path: 
         encoding="utf-8",
     )
     (api / "item.md").write_text(
-        "---\ntitle: Item\nsummary: API item.\nbadges: [provider:nvidia]\n---\n# Item\n",
+        "---\ntitle: Item\nsummary: API item.\n"
+        "badges: [provider:nvidia, task:medium-range]\n---\n# Item\n",
         encoding="utf-8",
     )
     config_file = tmp_path / "mkdocs.yml"
@@ -252,7 +254,11 @@ def test_badge_can_be_hidden_from_autosummary_but_visible_on_api_page(tmp_path: 
                                     "label": "NV",
                                     "name": "NVIDIA",
                                     "hide_in": ["autosummary"],
-                                }
+                                },
+                                "task:medium-range": {
+                                    "label": "MRF",
+                                    "name": "Medium Range Forecast",
+                                },
                             }
                         }
                     }
@@ -270,8 +276,11 @@ def test_badge_can_be_hidden_from_autosummary_but_visible_on_api_page(tmp_path: 
         (tmp_path / "site/api/item/index.html").read_text(encoding="utf-8"), "html.parser"
     )
     row = catalog_page.select_one("table.mkdocs-badges-autosummary tbody tr")
-    assert row["data-badge-ids"] == "provider:nvidia"
-    assert not row.select_one(".mkdocs-badge")
+    assert row["data-badge-ids"] == "provider:nvidia,task:medium-range"
+    assert row["data-render-badges"] == "true"
+    assert [badge.get_text(strip=True) for badge in row.select(".mkdocs-badge")] == ["MRF"]
+    assert "Medium Range Forecast" not in row.get_text()
+    assert not row.select_one('[data-badge-id="provider:nvidia"]')
     assert api_page.select_one('[data-badge-id="provider:nvidia"]')
     catalog = json.loads(
         (tmp_path / "site/assets/mkdocs-badges/catalog.json").read_text(encoding="utf-8")

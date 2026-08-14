@@ -122,7 +122,11 @@
       : hrefToPageName(anchor?.getAttribute("href") || "");
     return {
       element, anchor, tbody, pageName,
-      badgeIds: explicit.length ? explicit : null
+      badgeIds: explicit.length ? explicit : null,
+      badgeContext: element.closest("table.mkdocs-badges-autosummary")
+        ? "autosummary"
+        : "filter",
+      renderBadges: element.dataset.renderBadges !== "false"
     };
   }
 
@@ -179,7 +183,7 @@
   }
 
   function annotateEntry(entry, badgeOrder) {
-    if (!entry.anchor || directBadgeIds(entry.element).length) return;
+    if (!entry.anchor || !entry.renderBadges || directBadgeIds(entry.element).length) return;
     let ids = badgesForEntry(entry).slice();
     if (badgeOrder.length) {
       ids.sort((left, right) => {
@@ -191,7 +195,7 @@
     const list = document.createElement("span");
     list.className = "mkdocs-badge-list mkdocs-badge-list--entry";
     ids.forEach((id) => {
-      const badge = makeBadge(id, "filter");
+      const badge = makeBadge(id, entry.badgeContext);
       if (badge) list.appendChild(badge);
     });
     if (!list.children.length) return;
