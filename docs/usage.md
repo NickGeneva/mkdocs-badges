@@ -202,10 +202,14 @@ as `window.MKDOCS_BADGES.catalog`.
 Options are placed after the badge IDs:
 
 ```markdown
-<!-- mkdocs-badges:filter area:core stability:stable mode=or order=fixed toggle=true hidden="area" -->
+<!-- mkdocs-badges:filter area:core stability:stable mode=or order=fixed toggle=true hidden="area" labels=auto -->
 ```
 
 - `mode=and|or`: matching for ungrouped filters
 - `order=fixed`: canonical badge display order
 - `toggle=true`: group chip visibility controls
 - `hidden="group1 group2"`: initially hidden chip groups
+- `labels=auto|label|name`: filter-button text source. The default `auto` uses
+  compact badge `label` values when the filter contains an autosummary table,
+  and full `name` values for other filterable content. Set this explicitly to
+  override the automatic choice.

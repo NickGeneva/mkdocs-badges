@@ -137,7 +137,9 @@ rendering a visual chip. Hidden classifiers still participate in indexing and
 filter matching. Use `hide_in: [page, autosummary, filter]` to suppress visual
 chips only in selected contexts. A compact `label` can be paired with a full
 human-readable `name`; filter controls and catalog interfaces prefer `name`,
-then `tooltip`, then `label`. Builds also produce
+then `tooltip`, then `label`. Filters containing autosummary tables automatically
+use compact `label` values instead; override this with `labels=label|name` on
+the filter marker. Builds also produce
 `assets/mkdocs-badges/catalog.json` with
 page symbols, titles, summaries, URLs, signatures, and complete classifier lists for
 custom card or tile catalogs; configure or disable this with `catalog_path`.

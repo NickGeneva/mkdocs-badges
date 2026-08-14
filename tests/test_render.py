@@ -83,6 +83,21 @@ def test_filter_uses_full_name_and_respects_filter_visibility():
     assert "Medium Range Forecast" in rendered
     assert "MRF" not in rendered
     assert "provider:nvidia" not in rendered
+    assert 'data-filter-label-source="auto"' in rendered
+
+
+def test_filter_can_explicitly_use_compact_badge_labels():
+    rendered = filter_html(
+        ["task:medium-range"],
+        {"task:medium-range": {"label": "MRF", "name": "Medium Range Forecast"}},
+        {},
+        "#aaa",
+        "rounded",
+        {"labels": "label"},
+    )
+    assert 'data-filter-label-source="label"' in rendered
+    assert "MRF" in rendered
+    assert "Medium Range Forecast" not in rendered
 
 
 def test_parse_options_supports_quoted_values():

@@ -273,6 +273,17 @@
     const grouped = widget.dataset.grouped === "true";
     const mode = widget.dataset.filterMode || "and";
     const badgeOrder = (widget.dataset.badgeOrder || "").split(",").filter(Boolean);
+    const labelSource = widget.dataset.filterLabelSource || "auto";
+    const useCompactLabels = labelSource === "label" || (
+      labelSource === "auto" && Boolean(content.querySelector("table.mkdocs-badges-autosummary"))
+    );
+    if (useCompactLabels) {
+      widget.querySelectorAll(".mkdocs-badge-filter__button").forEach((button) => {
+        const definition = (state().definitions || {})[button.dataset.badgeId];
+        const label = button.querySelector(".mkdocs-badge__label");
+        if (definition && label) label.textContent = definition.label || "";
+      });
+    }
     const available = new Set(
       [...widget.querySelectorAll(".mkdocs-badge-filter__button")]
         .map((button) => button.dataset.badgeId)

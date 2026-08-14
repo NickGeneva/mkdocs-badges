@@ -223,6 +223,9 @@ def filter_html(
     fixed = str(options.get("order", "")).lower() == "fixed"
     toggle = str(options.get("toggle", "false")).lower() in {"1", "true", "yes"}
     hidden = str(options.get("hidden", "")).replace(",", " ").split()
+    label_source = str(options.get("labels", "auto")).lower()
+    if label_source not in {"auto", "label", "name"}:
+        label_source = "auto"
     visible_ids = [
         badge_id
         for badge_id in badge_ids
@@ -237,6 +240,7 @@ def filter_html(
         "data-badge-order": ",".join(visible_ids) if fixed else "",
         "data-group-visibility-toggle": str(toggle).lower(),
         "data-groups-hidden": ",".join(hidden),
+        "data-filter-label-source": label_source,
     }
     attr_html = " ".join(
         f'{key}="{html.escape(value, quote=True)}"' for key, value in attrs.items() if value
@@ -273,7 +277,14 @@ def filter_html(
                 f"{html.escape(config['label'])}</span>"
             )
             result.extend(
-                _filter_button(badge_id, definitions, default_color, style) for badge_id in members
+                _filter_button(
+                    badge_id,
+                    definitions,
+                    default_color,
+                    style,
+                    label_source=label_source,
+                )
+                for badge_id in members
             )
             result.append("</div>")
         result.append(
@@ -286,7 +297,14 @@ def filter_html(
             'data-badge-id="__all__" aria-pressed="true">All</button>'
         )
         result.extend(
-            _filter_button(badge_id, definitions, default_color, style) for badge_id in visible_ids
+            _filter_button(
+                badge_id,
+                definitions,
+                default_color,
+                style,
+                label_source=label_source,
+            )
+            for badge_id in visible_ids
         )
         result.append(
             '<button type="button" class="mkdocs-badge-filter__clear" hidden>Clear filters</button>'
@@ -300,14 +318,17 @@ def _filter_button(
     definitions: Mapping[str, Mapping[str, Any]],
     default_color: str,
     style: str,
+    *,
+    label_source: str = "name",
 ) -> str:
     definition = resolve_badge(badge_id, definitions, default_color)
+    display_label = definition.label if label_source == "label" else definition.name
     badge = badge_html(
         badge_id,
         definitions,
         default_color,
         style,
-        definition.name,
+        display_label,
         context="filter",
     )
     return (
