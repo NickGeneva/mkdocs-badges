@@ -241,6 +241,57 @@ hidden = true
     assert catalog["definitions"]["provider:nvidia"]["hidden"] is True
 
 
+def test_zensical_context_specific_visibility(tmp_path: Path):
+    docs = tmp_path / "docs"
+    api = docs / "api"
+    api.mkdir(parents=True)
+    (docs / "index.md").write_text(
+        "# Catalog\n\n{% autosummary %}\n/api/item.md\n{% endautosummary %}\n",
+        encoding="utf-8",
+    )
+    (api / "item.md").write_text(
+        "---\ntitle: Item\nsummary: API item.\nbadges: [provider:nvidia]\n---\n# Item\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "zensical.toml").write_text(
+        """[project]
+site_name = "Test"
+
+[project.markdown_extensions."mkdocs_badges.zensical"]
+
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."provider:nvidia"]
+label = "NV"
+name = "NVIDIA"
+hide_in = ["autosummary"]
+""",
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [sys.executable, "-m", "zensical", "build", "--clean"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+    catalog_page = BeautifulSoup(
+        (tmp_path / "site/index.html").read_text(encoding="utf-8"), "html.parser"
+    )
+    api_page = BeautifulSoup(
+        (tmp_path / "site/api/item/index.html").read_text(encoding="utf-8"), "html.parser"
+    )
+    row = catalog_page.select_one("table.mkdocs-badges-autosummary tbody tr")
+    assert row["data-badge-ids"] == "provider:nvidia"
+    assert not row.select_one(".mkdocs-badge")
+    assert api_page.select_one('[data-badge-id="provider:nvidia"]')
+    catalog = json.loads(
+        (tmp_path / "site/assets/mkdocs-badges/catalog.json").read_text(encoding="utf-8")
+    )
+    assert catalog["definitions"]["provider:nvidia"]["name"] == "NVIDIA"
+    assert catalog["definitions"]["provider:nvidia"]["hide_in"] == ["autosummary"]
+
+
 def test_zensical_autosummary_resolves_python_api_symbols(tmp_path: Path):
     docs = tmp_path / "docs"
     generated = docs / "modules/generated/perturbation/1"

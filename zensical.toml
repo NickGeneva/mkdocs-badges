@@ -94,5 +94,7 @@ icon = "🐍"
 tooltip = "Python"
 
 [project.markdown_extensions."mkdocs_badges.zensical".definitions."provider:acme"]
-label = "Acme"
-hidden = true
+label = "ACME"
+name = "Acme Compute Provider"
+tooltip = "Acme Compute Provider"
+hide_in = ["autosummary"]

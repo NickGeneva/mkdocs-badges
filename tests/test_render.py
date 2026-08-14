@@ -39,6 +39,52 @@ def test_hidden_badge_remains_defined_but_has_no_visual_markup():
     assert badges_html(["provider:nvidia"], definitions, "#aaa", "pill") == ""
 
 
+def test_hide_in_only_suppresses_selected_render_contexts():
+    definitions = {
+        "provider:nvidia": {
+            "label": "NV",
+            "name": "NVIDIA",
+            "tooltip": "NVIDIA provider",
+            "hide_in": ["autosummary"],
+        }
+    }
+    definition = resolve_badge("provider:nvidia", definitions)
+    assert definition.name == "NVIDIA"
+    assert definition.hide_in == ("autosummary",)
+    assert "NV" in badge_html("provider:nvidia", definitions, "#aaa", "pill")
+    assert (
+        badge_html(
+            "provider:nvidia",
+            definitions,
+            "#aaa",
+            "pill",
+            context="autosummary",
+        )
+        == ""
+    )
+
+
+def test_filter_uses_full_name_and_respects_filter_visibility():
+    definitions = {
+        "task:medium-range": {
+            "label": "MRF",
+            "name": "Medium Range Forecast",
+        },
+        "provider:nvidia": {"label": "NV", "hide_in": ["filter"]},
+    }
+    rendered = filter_html(
+        ["task:medium-range", "provider:nvidia"],
+        definitions,
+        {},
+        "#aaa",
+        "rounded",
+        {},
+    )
+    assert "Medium Range Forecast" in rendered
+    assert "MRF" not in rendered
+    assert "provider:nvidia" not in rendered
+
+
 def test_parse_options_supports_quoted_values():
     ids, options = parse_options('stable area:core mode=or label="Release candidate"')
     assert ids == ["stable", "area:core"]

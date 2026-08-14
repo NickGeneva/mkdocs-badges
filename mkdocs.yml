@@ -44,7 +44,7 @@ plugins:
         area:math: { label: Math, color: "#20c997", text_color: "#000", icon: "📐" }
         area:utils: { label: Utils, color: "#fd7e14", text_color: "#fff", icon: "🔧" }
         platform:python: { label: "", color: "#3572a5", text_color: "#fff", icon: "🐍", tooltip: Python }
-        provider:acme: { label: Acme, hidden: true }
+        provider:acme: { label: ACME, name: Acme Compute Provider, tooltip: Acme Compute Provider, hide_in: [autosummary] }
 
 markdown_extensions:
   - attr_list

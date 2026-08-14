@@ -71,13 +71,29 @@ class BadgeDefinition:
     text_color: str
     icon: str
     tooltip: str
+    name: str
     hidden: bool
+    hide_in: tuple[str, ...]
+
+    def visible_in(self, context: str) -> bool:
+        """Return whether this badge has visual markup in a render context."""
+        return not self.hidden and context.lower() not in self.hide_in
 
 
 def _as_bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _as_contexts(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        values = re.split(r"[\s,]+", value)
+    elif isinstance(value, Sequence):
+        values = [str(item) for item in value]
+    else:
+        return ()
+    return tuple(dict.fromkeys(item.strip().lower() for item in values if item.strip()))
 
 
 def resolve_badge(
@@ -95,6 +111,8 @@ def resolve_badge(
     label = values.get("label")
     if label is None:
         label = name.replace("_", " ").replace("-", " ").title()
+    tooltip = str(values.get("tooltip", ""))
+    display_name = values.get("name") or values.get("display_name") or tooltip or label
     return BadgeDefinition(
         badge_id=badge_id,
         group=group,
@@ -102,8 +120,10 @@ def resolve_badge(
         color=_safe_color(values.get("color", default_color), DEFAULT_COLOR),
         text_color=_safe_color(values.get("text_color", "#fff"), "#fff"),
         icon=str(values.get("icon", "")),
-        tooltip=str(values.get("tooltip", "")),
+        tooltip=tooltip,
+        name=str(display_name),
         hidden=_as_bool(values.get("hidden", False)),
+        hide_in=_as_contexts(values.get("hide_in", ())),
     )
 
 
@@ -113,10 +133,12 @@ def badge_html(
     default_color: str,
     style: str,
     label_override: str | None = None,
+    *,
+    context: str = "page",
 ) -> str:
     """Render one badge. Configuration icons may intentionally contain HTML."""
     badge = resolve_badge(badge_id, definitions, default_color)
-    if badge.hidden:
+    if not badge.visible_in(context):
         return ""
     label = badge.label if label_override is None else label_override
     content = ""
@@ -146,13 +168,14 @@ def badges_html(
     *,
     block: bool = False,
     extra_class: str = "",
+    context: str = "page",
 ) -> str:
     tag = "div" if block else "span"
     classes = "mkdocs-badge-list"
     if extra_class:
         classes = f"{classes} {extra_class}"
     items = "".join(
-        badge_html(badge_id, definitions, default_color, style)
+        badge_html(badge_id, definitions, default_color, style, context=context)
         for badge_id in badge_ids
         if badge_id
     )
@@ -203,7 +226,7 @@ def filter_html(
     visible_ids = [
         badge_id
         for badge_id in badge_ids
-        if not resolve_badge(badge_id, definitions, default_color).hidden
+        if resolve_badge(badge_id, definitions, default_color).visible_in("filter")
     ]
     parsed = [(badge_id, *parse_badge_id(badge_id)) for badge_id in visible_ids]
     grouped = bool(parsed) and all(group for _, group, _ in parsed)
@@ -278,7 +301,15 @@ def _filter_button(
     default_color: str,
     style: str,
 ) -> str:
-    badge = badge_html(badge_id, definitions, default_color, style)
+    definition = resolve_badge(badge_id, definitions, default_color)
+    badge = badge_html(
+        badge_id,
+        definitions,
+        default_color,
+        style,
+        definition.name,
+        context="filter",
+    )
     return (
         '<button type="button" class="mkdocs-badge-filter__button" '
         f'data-badge-id="{html.escape(badge_id, quote=True)}" aria-pressed="false">'

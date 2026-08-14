@@ -232,7 +232,9 @@ def _runtime_payload(
             "group": definition.group,
             "icon": definition.icon,
             "tooltip": definition.tooltip,
+            "name": definition.name,
             "hidden": definition.hidden,
+            "hide_in": list(definition.hide_in),
         }
     return {
         "pages": page_index,
@@ -592,6 +594,7 @@ def _autosummary_html(
                 default_color,
                 style,
                 extra_class="mkdocs-badge-list--summary",
+                context="autosummary",
             )
             if show_badges
             else ""

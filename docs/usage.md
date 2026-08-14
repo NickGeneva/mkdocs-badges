@@ -19,8 +19,10 @@ color = "#198754"
 text_color = "#fff"
 
 [project.markdown_extensions."mkdocs_badges.zensical".definitions."provider:nvidia"]
-label = "NVIDIA"
-hidden = true
+label = "NV"
+name = "NVIDIA"
+tooltip = "NVIDIA provider"
+hide_in = ["autosummary"]
 ```
 
 Run `zensical serve` while authoring and `zensical build --clean` for production.
@@ -52,6 +54,26 @@ a classifier without displaying its chip. Hidden classifiers remain in page
 metadata, autosummary row `data-badge-ids`, filtering state, and generated
 catalog data, but are omitted from page titles, shortcodes, tables, linked-list
 annotations, and filter controls.
+
+For scope-specific visibility, use `hide_in` with any combination of `page`,
+`autosummary`, and `filter`. For example, `hide_in = ["autosummary"]` keeps a
+provider classifier on its full API page and in catalog/filter metadata while
+omitting its chip from autosummary rows. Visibility never removes the classifier
+from `data-badge-ids` or catalog data, so it can still match filters and power
+custom catalogs.
+
+Use `name` for the full human-readable identity while keeping `label` compact:
+
+```toml
+[project.markdown_extensions."mkdocs_badges.zensical".definitions."task:medium-range"]
+label = "MRF"
+name = "Medium Range Forecast"
+tooltip = "Medium Range Forecast"
+```
+
+Page and autosummary chips use `label`. Filter controls and catalog consumers
+use `name`, falling back to `tooltip` and then `label`. `display_name` is
+accepted as an alias for `name`.
 
 Badge and filter-control text is non-selectable by default, which prevents the
 browser's text-selection highlight from appearing during interaction. Set
@@ -168,7 +190,8 @@ parameters.
 Every build writes `assets/mkdocs-badges/catalog.json` by default. It contains a
 `catalog` array with each page's source path, output URL, canonical symbol,
 title, first-sentence summary, signature, and complete `classifiers` list, plus all badge
-`definitions`, including their `hidden` state. This provides a stable input for
+`definitions`, including their `name`, `hidden`, and `hide_in` state. This
+provides a stable input for
 custom card, tile, or cross-API catalog interfaces without coupling them to the
 autosummary table markup.
 

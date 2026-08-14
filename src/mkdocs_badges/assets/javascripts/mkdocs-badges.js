@@ -75,10 +75,10 @@
     return pages[normalised] || [];
   }
 
-  function makeBadge(badgeId) {
+  function makeBadge(badgeId, context = "page") {
     const config = state();
     const definition = (config.definitions || {})[badgeId];
-    if (!definition || definition.hidden) return null;
+    if (!definition || definition.hidden || (definition.hide_in || []).includes(context)) return null;
     const badge = document.createElement("span");
     badge.className = `mkdocs-badge mkdocs-badge--${config.style || "rounded"}`;
     badge.dataset.badgeId = badgeId;
@@ -92,10 +92,13 @@
       icon.innerHTML = definition.icon;
       badge.appendChild(icon);
     }
-    if (definition.label) {
+    const displayLabel = context === "filter"
+      ? (definition.name || definition.tooltip || definition.label)
+      : definition.label;
+    if (displayLabel) {
       const label = document.createElement("span");
       label.className = "mkdocs-badge__label";
-      label.textContent = definition.label;
+      label.textContent = displayLabel;
       badge.appendChild(label);
     }
     return badge;
@@ -188,7 +191,7 @@
     const list = document.createElement("span");
     list.className = "mkdocs-badge-list mkdocs-badge-list--entry";
     ids.forEach((id) => {
-      const badge = makeBadge(id);
+      const badge = makeBadge(id, "filter");
       if (badge) list.appendChild(badge);
     });
     if (!list.children.length) return;

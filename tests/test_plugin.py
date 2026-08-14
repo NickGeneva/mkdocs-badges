@@ -222,6 +222,63 @@ badges: [provider:nvidia]
     )
     assert catalog["catalog"][0]["classifiers"] == ["provider:nvidia"]
     assert catalog["definitions"]["provider:nvidia"]["hidden"] is True
+    assert catalog["definitions"]["provider:nvidia"]["name"] == "NVIDIA"
+
+
+def test_badge_can_be_hidden_from_autosummary_but_visible_on_api_page(tmp_path: Path):
+    docs = tmp_path / "docs"
+    api = docs / "api"
+    api.mkdir(parents=True)
+    (docs / "index.md").write_text(
+        "# Catalog\n\n{% autosummary %}\n/api/item.md\n{% endautosummary %}\n",
+        encoding="utf-8",
+    )
+    (api / "item.md").write_text(
+        "---\ntitle: Item\nsummary: API item.\nbadges: [provider:nvidia]\n---\n# Item\n",
+        encoding="utf-8",
+    )
+    config_file = tmp_path / "mkdocs.yml"
+    config_file.write_text(
+        yaml.safe_dump(
+            {
+                "site_name": "Test",
+                "docs_dir": str(docs),
+                "site_dir": str(tmp_path / "site"),
+                "plugins": [
+                    {
+                        "badges": {
+                            "definitions": {
+                                "provider:nvidia": {
+                                    "label": "NV",
+                                    "name": "NVIDIA",
+                                    "hide_in": ["autosummary"],
+                                }
+                            }
+                        }
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    build(load_config(config_file=str(config_file)))
+
+    catalog_page = BeautifulSoup(
+        (tmp_path / "site/index.html").read_text(encoding="utf-8"), "html.parser"
+    )
+    api_page = BeautifulSoup(
+        (tmp_path / "site/api/item/index.html").read_text(encoding="utf-8"), "html.parser"
+    )
+    row = catalog_page.select_one("table.mkdocs-badges-autosummary tbody tr")
+    assert row["data-badge-ids"] == "provider:nvidia"
+    assert not row.select_one(".mkdocs-badge")
+    assert api_page.select_one('[data-badge-id="provider:nvidia"]')
+    catalog = json.loads(
+        (tmp_path / "site/assets/mkdocs-badges/catalog.json").read_text(encoding="utf-8")
+    )
+    definition = catalog["definitions"]["provider:nvidia"]
+    assert definition["name"] == "NVIDIA"
+    assert definition["hide_in"] == ["autosummary"]
 
 
 def test_autosummary_resolves_python_api_symbols(tmp_path: Path):
